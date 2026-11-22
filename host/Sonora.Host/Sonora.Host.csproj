@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.19041.0</SupportedOSPlatformVersion>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>Sonora</AssemblyName>
+    <RootNamespace>Sonora</RootNamespace>
+    <Version>0.1.0</Version>
+    <Product>Sonora</Product>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <WebDist>$(MSBuildThisFileDirectory)..\..\web\dist\</WebDist>
+  </PropertyGroup>
+
+  <!-- The built frontend (web/dist) ships next to the exe as "web/". -->
+  <ItemGroup>
+    <Content Include="$(WebDist)**\*" Link="web\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4370.26" />
+  </ItemGroup>
+
+  <!-- WinForms only: drop the WPF control the WebView2 package always references (avoids a WindowsBase conflict). -->
+  <Target Name="DropWebView2Wpf" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="WarnMissingWeb" BeforeTargets="Build" Condition="!Exists('$(WebDist)index.html')">
+    <Warning Text="web/dist is missing. Run 'npm run build' in web/ first (or set SONORA_DEV_URL to use the Vite dev server)." />
+  </Target>
+
+</Project>

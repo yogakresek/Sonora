@@ -38,15 +38,28 @@ export interface Lyrics {
   plain: string | null;
 }
 
-export interface WidgetItem { id: string; name: string; description: string; enabled: boolean; locked: boolean }
+export interface QueueItem { title: string; artist: string; cover: string | null; durationMs: number }
+
+export interface QueueState {
+  status: 'no-client' | 'disconnected' | 'connecting' | 'ok' | 'empty' | 'error';
+  items: QueueItem[];
+  history: QueueItem[];
+  error: string | null;
+  clientId: string | null;
+}
+
+export interface WidgetItem { id: string; name: string; description: string; enabled: boolean; locked: boolean; options: Record<string, unknown> }
 
 export type HostMessage =
-  | { type: 'hello'; app: string; version: string; dataDir: string; runtime: string; webview: string }
+  | { type: 'hello'; app: string; version: string; dataDir: string; runtime: string; webview: string; mica?: boolean }
   | { type: 'audio-status'; status: AudioStatus }
   | { type: 'track'; track: Track | null }
   | { type: 'lyrics'; lyrics: Lyrics | null }
+  | { type: 'queue'; queue: QueueState; redirectUri?: string }
   | { type: 'widgets'; items: WidgetItem[]; hidden: boolean }
-  | { type: 'widget-init'; id: string; locked: boolean; keepAspect: boolean; options: Record<string, unknown>; lyricsOffsetMs: number }
+  | { type: 'widget-init'; id: string; locked: boolean; keepAspect: boolean; options: Record<string, unknown>; lyricsOffsetMs: number; fps: number; calm?: boolean }
+  | { type: 'widget-options'; options: Record<string, unknown> }
+  | { type: 'prefs'; fps: number; lyricsOffsetMs: number; sensitivity?: number; smoothing?: number; startWithWindows?: boolean; calm?: boolean }
   | { type: 'widget-state'; locked: boolean }
   | { type: 'pointer'; kind: 'enter' | 'move' | 'leave' | 'down' | 'up'; x: number; y: number; clicks: number };
 
@@ -59,7 +72,13 @@ export type WebMessage =
   | { type: 'widgets-hidden'; hidden: boolean }
   | { type: 'drag-start' | 'open-dashboard' }
   | { type: 'resize-start'; keepAspect: boolean }
-  | { type: 'options'; options: Record<string, unknown> };
+  | { type: 'options'; options: Record<string, unknown> }
+  | { type: 'widget-options'; id: string; options: Record<string, unknown> }
+  | { type: 'queue-play'; index: number }
+  | { type: 'spotify-connect'; clientId: string }
+  | { type: 'spotify-disconnect' }
+  | { type: 'open-url'; url: string }
+  | { type: 'prefs'; fps?: number; lyricsOffsetMs?: number; sensitivity?: number; smoothing?: number; startWithWindows?: boolean; calm?: boolean };
 
 export interface SharedBufferMeta {
   layout: number;

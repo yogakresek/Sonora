@@ -18,8 +18,9 @@ public sealed class WidgetManager : IDisposable
 {
     public static readonly WidgetInfo[] Catalog =
     [
-        new("cover", "Cover + visualizer", "Cover album yang sedang diputar, dikelilingi spektrum yang bergerak mengikuti musik.", 380, 380, true),
-        new("lyrics", "Lirik", "Lirik tersinkron dari LRCLIB; kata yang sedang dinyanyikan menyala.", 640, 240, false),
+        new("cover", "Visualizer", "Cover lagu yang sedang diputar, dengan spektrum yang bergerak mengikuti musik.", 380, 380, true),
+        new("lyrics", "Lirik", "Lirik yang berjalan seirama lagu; kata yang sedang dinyanyikan menyala.", 640, 240, false),
+        new("queue", "Antrean", "Lagu berikutnya dari Spotify; klik salah satunya untuk langsung memutarnya.", 540, 380, false),
     ];
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -29,6 +30,7 @@ public sealed class WidgetManager : IDisposable
     private readonly ExplorerWatcher _explorer;
     private readonly DesktopInput _input;
     private IDisposable? _audioLease;
+    private IDisposable? _queueLease;
     private bool _disposed;
 
     /// <summary>A widget was double-clicked.</summary>
@@ -42,6 +44,7 @@ public sealed class WidgetManager : IDisposable
         _services = services;
         _services.Media.Changed += track => Broadcast(new { type = "track", track });
         _services.Lyrics.Changed += lyrics => Broadcast(new { type = "lyrics", lyrics });
+        _services.Queue.Changed += queue => Broadcast(new { type = "queue", queue });
         _services.Audio.StatusChanged += OnAudioStatus;
         _explorer = new ExplorerWatcher(Rebuild);
         _input = new DesktopInput(services.Ui, () => _windows.Values);
@@ -52,7 +55,7 @@ public sealed class WidgetManager : IDisposable
     public IEnumerable<object> Describe() => Catalog.Select(info =>
     {
         var s = SettingsFor(info);
-        return new { id = info.Id, name = info.Name, description = info.Description, enabled = s.Enabled, locked = s.Locked };
+        return new { id = info.Id, name = info.Name, description = info.Description, enabled = s.Enabled, locked = s.Locked, options = s.Options };
     });
 
     // ---------------------------------------------------------------- lifecycle
@@ -75,6 +78,8 @@ public sealed class WidgetManager : IDisposable
         }
 
         _input.Update();
+        if (_windows.ContainsKey("queue")) _queueLease ??= _services.Queue.Acquire();
+        else { _queueLease?.Dispose(); _queueLease = null; }
         if (_windows.Count > 0) _audioLease ??= _services.Audio.Acquire();
         else { _audioLease?.Dispose(); _audioLease = null; }
     }
@@ -131,10 +136,13 @@ public sealed class WidgetManager : IDisposable
             keepAspect = info.KeepAspect,
             options = s.Options,
             lyricsOffsetMs = _services.Settings.Current.LyricsOffsetMs,
+            fps = _services.Settings.Current.FrameRate,
+            calm = _services.Settings.Current.CalmMode,
         }, Json);
         window.Post(new { type = "audio-status", status = _services.Audio.Status }, Json);
         window.Post(new { type = "track", track = _services.Media.Current }, Json);
         window.Post(new { type = "lyrics", lyrics = _services.Lyrics.Current }, Json);
+        window.Post(new { type = "queue", queue = _services.Queue.Current }, Json);
         if (window.Core is { } core) (await _services.GetAudioBridgeAsync()).Attach(core);
         _input.Update();
     }
@@ -142,6 +150,8 @@ public sealed class WidgetManager : IDisposable
     internal void RequestDashboard() => DashboardRequested?.Invoke();
 
     internal Task MediaCommandAsync(string command) => _services.Media.CommandAsync(command);
+
+    internal Task QueuePlayAsync(int index) => _services.Queue.PlayAsync(index);
 
     internal void SaveBounds(string id, Rectangle r)
     {
@@ -154,6 +164,21 @@ public sealed class WidgetManager : IDisposable
     {
         SettingsFor(Catalog.First(i => i.Id == id)).Options = options;
         _services.Settings.Changed();
+    }
+
+    /// <summary>From the dashboard: saves a widget's look and sends it to the widget right away.</summary>
+    public void SetOptions(string id, JsonObject options)
+    {
+        if (Catalog.All(i => i.Id != id)) return;
+        SaveOptions(id, options);
+        if (_windows.TryGetValue(id, out var w)) w.Post(new { type = "widget-options", options }, Json);
+    }
+
+    /// <summary>Settings every widget follows (frame rate, lyric timing).</summary>
+    public void BroadcastPrefs()
+    {
+        var s = _services.Settings.Current;
+        Broadcast(new { type = "prefs", fps = s.FrameRate, lyricsOffsetMs = s.LyricsOffsetMs, calm = s.CalmMode });
     }
 
     // ---------------------------------------------------------------- called by dashboard / tray
@@ -216,6 +241,8 @@ public sealed class WidgetManager : IDisposable
         {
             "cover" => new Rectangle(wa.Right - w - (int)(90 * k), wa.Top + (int)(140 * k), w, h),
             "lyrics" => new Rectangle(wa.Left + (wa.Width - w) / 2 - (int)(60 * k), wa.Top + (int)(wa.Height * 0.2), w, h),
+            // Under the visualizer, which sits top-right.
+            "queue" => new Rectangle(wa.Right - w - (int)(90 * k), Math.Min(wa.Top + (int)((140 + 380 + 20) * k), wa.Bottom - h), w, h),
             _ => new Rectangle(wa.Left + (wa.Width - w) / 2, wa.Top + (wa.Height - h) / 2, w, h),
         };
     }
@@ -250,6 +277,8 @@ public sealed class WidgetManager : IDisposable
         foreach (var w in _windows.Values.ToList()) Close(w);
         _audioLease?.Dispose();
         _audioLease = null;
+        _queueLease?.Dispose();
+        _queueLease = null;
     }
 
     /// <summary>A hidden top-level window that hears Explorer's "TaskbarCreated" broadcast.</summary>

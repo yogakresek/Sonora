@@ -189,6 +189,9 @@ public sealed class WidgetWindow : Form, IDesktopTarget
                 case "media":
                     if (msg?["command"]?.GetValue<string>() is { } command) await _manager.MediaCommandAsync(command);
                     break;
+                case "queue-play":
+                    if (msg?["index"] is JsonValue idx) await _manager.QueuePlayAsync((int)idx);
+                    break;
                 case "options":
                     if (msg?["options"] is JsonObject options) _manager.SaveOptions(Id, options);
                     break;

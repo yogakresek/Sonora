@@ -4,6 +4,7 @@ using Sonora.Bridge;
 using Sonora.Content;
 using Sonora.Media;
 using Sonora.Settings;
+using Sonora.Spotify;
 using Sonora.Widgets;
 
 namespace Sonora;
@@ -19,13 +20,18 @@ public sealed class Services : IDisposable
     public AudioEngine Audio { get; } = new();
     public MediaService Media { get; }
     public LyricsService Lyrics { get; }
+    public QueueService Queue { get; }
     public WidgetManager Widgets { get; }
 
     public Services(SynchronizationContext ui)
     {
         Ui = ui;
+        Audio.Sensitivity = Settings.Current.AudioSensitivity;
+        Audio.Smoothing = Settings.Current.AudioSmoothing;
+        Startup.Refresh();
         Media = new MediaService(ui);
         Lyrics = new LyricsService(Media);
+        Queue = new QueueService(Settings, Media);
         Widgets = new WidgetManager(this);
         _ = StartMediaAsync();
     }
@@ -55,6 +61,7 @@ public sealed class Services : IDisposable
         _audioBridge?.Dispose();
         Audio.Dispose();
         Lyrics.Dispose();
+        Queue.Dispose();
         Media.Dispose();
         Settings.Dispose();
     }

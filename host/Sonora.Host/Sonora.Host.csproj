@@ -29,6 +29,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4370.26" />
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="11.0.0" />
   </ItemGroup>
 
   <!-- WinForms only: drop the WPF control the WebView2 package always references (avoids a WindowsBase conflict). -->

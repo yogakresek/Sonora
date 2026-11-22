@@ -4,7 +4,8 @@
 import './widget.css';
 import { AudioReader } from '../audio';
 import { onMessage, send } from '../bridge';
-import { createCover } from './cover';
+import { createQueue } from './queue';
+import { createVisualizer } from './visualizer';
 import { createLyrics } from './lyrics';
 import type { WidgetContext, WidgetModule, WidgetState } from './types';
 
@@ -18,11 +19,11 @@ root.innerHTML = `
 `;
 const stage = root.querySelector<HTMLElement>('.w__stage')!;
 
-const state: WidgetState = { track: null, lyrics: null, locked: false, options: {}, lyricsOffsetMs: 0 };
+const state: WidgetState = { track: null, lyrics: null, locked: false, options: {}, lyricsOffsetMs: 0, calm: false, queue: null };
 let keepAspect = false;
 
 const ctx: WidgetContext = { root, stage, state };
-const widget: WidgetModule = id === 'lyrics' ? createLyrics(ctx) : createCover(ctx);
+const widget: WidgetModule = id === 'lyrics' ? createLyrics(ctx) : id === 'queue' ? createQueue(ctx) : createVisualizer(ctx);
 const audio = new AudioReader();
 
 // ------------------------------------------------------------------ host messages
@@ -34,6 +35,8 @@ onMessage((msg) => {
       state.options = msg.options ?? {};
       state.lyricsOffsetMs = msg.lyricsOffsetMs;
       keepAspect = msg.keepAspect;
+      state.calm = !!msg.calm;
+      setFps(msg.fps);
       break;
     case 'widget-state':
       state.locked = msg.locked;
@@ -43,6 +46,17 @@ onMessage((msg) => {
       break;
     case 'lyrics':
       state.lyrics = msg.lyrics;
+      break;
+    case 'queue':
+      state.queue = msg.queue;
+      break;
+    case 'widget-options':
+      state.options = msg.options ?? {};
+      break;
+    case 'prefs':
+      state.lyricsOffsetMs = msg.lyricsOffsetMs;
+      state.calm = !!msg.calm;
+      setFps(msg.fps);
       break;
     case 'pointer':
       onPointer(msg.kind, msg.x, msg.y, msg.clicks);
@@ -128,7 +142,10 @@ root.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // Full speed while music plays or something animates; ~12 fps when everything is still.
 let lastDraw = 0;
-const MIN_FRAME_MS = 1000 / 60 - 2; // small slack so a 60 Hz screen never skips a frame
+let MIN_FRAME_MS = 1000 / 60 - 2; // small slack so a 60 Hz screen never skips a frame
+function setFps(fps: number | undefined): void {
+  MIN_FRAME_MS = 1000 / Math.max(15, Math.min(60, fps || 60)) - 2;
+}
 const IDLE_FRAME_MS = 80;
 let busy = true;
 

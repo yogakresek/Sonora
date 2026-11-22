@@ -3,7 +3,7 @@
 Widget musik untuk desktop Windows: visualizer, lirik tersinkron, dan wallpaper hidup. Gratis dan open source.
 Rancangan lengkapnya ada di [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Status:** M2 — widget desktop terpisah: **Cover + visualizer** dan **Lirik** tersinkron (LRCLIB), bisa digeser, diubah ukurannya, dan dikunci. Di bawahnya ada audio engine (WASAPI, spektrum, kick, BPM) dan koneksi otomatis ke Spotify lewat SMTC.
+**Status:** M4 — widget **Antrean** (lagu berikutnya dari Spotify Web API, opsional; klik untuk memutar), gaya lirik **Kinetik** (tiap kata punya font, ukuran, dan animasinya sendiri), dan **Mode santai**. Sebelumnya: dashboard bergaya Windows 11, 5 gaya Visualizer, 5 gaya Lirik. Arah desain ada di [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Kebutuhan
 - Windows 10 19041+ / Windows 11

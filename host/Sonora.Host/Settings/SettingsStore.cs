@@ -26,6 +26,14 @@ public sealed class AppSettings
     public bool WidgetsHidden { get; set; }
     /// <summary>Shifts every lyric line; positive = words appear later.</summary>
     public int LyricsOffsetMs { get; set; }
+    /// <summary>Widget drawing rate: 60 (smooth) or 30 (light).</summary>
+    public int FrameRate { get; set; } = 60;
+    /// <summary>No beat pulsing or flashing; slower, softer motion everywhere.</summary>
+    public bool CalmMode { get; set; }
+    /// <summary>Client ID of the user's own Spotify app (for the queue). Not a secret.</summary>
+    public string? SpotifyClientId { get; set; }
+    public float AudioSensitivity { get; set; } = 1f;
+    public float AudioSmoothing { get; set; } = 0.72f;
     public Dictionary<string, WidgetSettings> Widgets { get; set; } = [];
 }
 

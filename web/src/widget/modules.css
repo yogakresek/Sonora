@@ -1,0 +1,255 @@
+/* Styles of the widget modules themselves. Shared by the desktop widgets and the dashboard previews. */
+
+/* ---------------------------------------------------------------- visualizer */
+
+.vis__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+.vis__controls {
+  position: absolute;
+  left: 50%;
+  bottom: 7%;
+  transform: translateX(-50%) translateY(6px);
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(14, 14, 22, 0.72);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  transition: opacity 0.18s, transform 0.18s;
+}
+.w--hover .vis__controls { opacity: 1; transform: translateX(-50%); }
+.vis__controls button {
+  width: 36px; height: 36px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: transparent; color: #fff;
+  transition: background 0.12s;
+}
+.vis__controls button.is-hover { background: rgba(255, 255, 255, 0.12); }
+.vis__controls button.is-active { background: rgba(255, 255, 255, 0.22); }
+.vis__controls button:disabled { opacity: 0.35; }
+
+/* ---------------------------------------------------------------- lyrics: common */
+
+.lyr {
+  --glow: #a855f7;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 4% 6%;
+  gap: 0.22em;
+  font-family: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.012em;
+  line-height: 1.14;
+  color: #fff;
+  overflow: hidden;
+}
+.lyr[data-align="left"] { align-items: flex-start; text-align: left; }
+.lyr[data-align="right"] { align-items: flex-end; text-align: right; }
+
+.lyr__line {
+  max-width: 100%;
+  text-wrap: balance;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.5);
+  transition: opacity 0.35s;
+}
+.lyr__line--side { font-size: 0.66em; opacity: 0.4; }
+.lyr__line--cur { transform-origin: center; }
+.lyr[data-align="left"] .lyr__line--cur { transform-origin: left center; }
+.lyr[data-align="right"] .lyr__line--cur { transform-origin: right center; }
+
+.lyr--shift .lyr__line--cur { animation: lyr-in 0.42s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.lyr--shift .lyr__line--prev { animation: lyr-up 0.42s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@keyframes lyr-in { from { opacity: 0; translate: 0 0.5em; } }
+@keyframes lyr-up { from { translate: 0 0.9em; opacity: 0.9; } }
+
+.lyr__word { color: rgba(255, 255, 255, 0.38); transition: color 0.18s, text-shadow 0.25s; }
+.lyr__word--sung { color: #fff; }
+.lyr--glow .lyr__word--sung { text-shadow: 0 0 0.55em var(--glow), 0 2px 14px rgba(0, 0, 0, 0.45); }
+
+.lyr__dots { display: inline-flex; gap: 0.35em; padding: 0.2em 0; }
+.lyr__dots i {
+  width: 0.26em; height: 0.26em; border-radius: 50%;
+  background: #fff; opacity: 0.6;
+  transform: scale(calc(0.8 + var(--k, 0) * 0.6));
+}
+
+.lyr__hint {
+  position: absolute;
+  inset: auto 0 6px 0;
+  text-align: center;
+  font: 500 12px 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.w--hover .lyr__hint, .preview .lyr__hint { opacity: 1; }
+
+/* ---------------------------------------------------------------- lyrics: focus */
+
+.lyr--focus { font-size: 1.15em; }
+.lyr--focus .lyr__line--cur { font-size: 1.18em; }
+
+/* ---------------------------------------------------------------- lyrics: flow */
+
+.lyr--flow { justify-content: flex-start; padding-top: 0; padding-bottom: 0; }
+.lyr__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.42em;
+  width: 100%;
+  align-items: inherit;
+  font-size: 0.62em;
+  transition: transform 0.55s cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+.lyr__list .lyr__line {
+  --d: 6;
+  opacity: calc(1 - var(--d) * 0.15);
+  filter: blur(calc(var(--d) * 0.45px));
+  transition: opacity 0.4s, filter 0.4s, scale 0.12s;
+}
+.lyr__list .lyr__line.is-active { opacity: 1; filter: none; }
+.lyr__list .lyr__line:not(.is-active) { color: rgba(255, 255, 255, 0.55); }
+
+/* ---------------------------------------------------------------- lyrics: card */
+
+.lyr--card { padding: 3%; }
+.lyr__card {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: inherit;
+  gap: 0.28em;
+  padding: 0.6em 0.8em;
+  border-radius: 0.55em;
+  background: rgba(14, 14, 22, 0.74);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.lyr--card .lyr__line { font-size: 0.72em; text-shadow: none; }
+.lyr--card .lyr__line--side { font-size: 0.5em; }
+.lyr__meta { display: flex; align-items: center; gap: 0.5em; font-size: 0.34em; font-weight: 500; opacity: 0.9; margin-bottom: 0.4em; }
+.lyr__cover { width: 2.4em; height: 2.4em; border-radius: 0.4em; object-fit: cover; }
+.lyr__title { display: flex; flex-direction: column; text-align: left; line-height: 1.25; min-width: 0; }
+.lyr__title b { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lyr__title span { opacity: 0.65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lyr--card.lyr--empty .lyr__card { opacity: 0; }
+
+/* ---------------------------------------------------------------- calm mode (Mode santai) */
+
+/* Lines fade in place instead of sliding; words light up and the list glides more slowly. */
+.lyr--calm.lyr--shift .lyr__line--cur { animation: lyr-fade 0.7s ease; }
+.lyr--calm.lyr--shift .lyr__line--prev { animation: none; }
+.lyr--calm .lyr__word { transition: color 0.45s, text-shadow 0.6s; }
+.lyr--calm .lyr__list { transition-duration: 1s; }
+.lyr--calm .lyr__line--cur, .lyr--calm .lyr__list .lyr__line { scale: 1 !important; }
+@keyframes lyr-fade { from { opacity: 0; } }
+
+/* ---------------------------------------------------------------- queue */
+
+.q { --q-accent: #a855f7; --q-accent-2: #22d3ee; position: absolute; inset: 0; font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; color: #fff; }
+.q__thumb {
+  width: 2.6em; height: 2.6em; flex: none; border-radius: 0.5em; overflow: hidden;
+  display: grid; place-items: center; font-size: 1em; color: rgba(255,255,255,0.7);
+  background: linear-gradient(135deg, var(--q-accent), var(--q-accent-2));
+  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.35);
+}
+.q__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.q__text { display: flex; flex-direction: column; min-width: 0; line-height: 1.22; text-align: left; }
+.q__text b { font-weight: 650; font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q__text span { font-size: 0.82em; color: rgba(255,255,255,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q__label { font-size: 0.62em !important; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--q-accent) !important; filter: brightness(1.3); }
+.q__item {
+  display: flex; align-items: center; gap: 0.7em;
+  border: 0; background: transparent; color: inherit; font: inherit; padding: 0.35em 0.5em; border-radius: 0.7em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+  transition: background 0.15s, transform 0.15s, opacity 0.2s;
+}
+button.q__item.is-hover, button.q__item:hover { background: rgba(255, 255, 255, 0.1); }
+button.q__item.is-active { background: rgba(255, 255, 255, 0.18); }
+.q__item--past { opacity: 0.45; }
+.q__item--past .q__thumb { filter: grayscale(0.6); }
+.q__note { font-size: 0.78em; color: rgba(255,255,255,0.72); text-shadow: 0 1px 8px rgba(0,0,0,0.7); max-width: 17em; line-height: 1.35; }
+
+/* arc */
+.q__disc {
+  --glow: 0.3;
+  position: absolute; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; font-size: 3em; color: rgba(255,255,255,0.6);
+  background: linear-gradient(135deg, var(--q-accent), var(--q-accent-2));
+  box-shadow: 0 0 calc(1.2em + var(--glow) * 1.8em) color-mix(in srgb, var(--q-accent) calc(35% + var(--glow) * 40%), transparent),
+              inset 0 0 0 2px rgba(255,255,255,0.12);
+}
+.q__disc img { width: 100%; height: 100%; object-fit: cover; }
+.q__arc { position: absolute; inset: 0; }
+.q--arc .q__item, .q--arc .q__note {
+  position: absolute; box-sizing: border-box;
+  transform: translateY(-50%) rotate(var(--tilt, 0deg));
+  transform-origin: left center;
+  opacity: var(--fade, 1);
+  animation: q-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+.q--arc .q__item--now { opacity: 1; }
+.q--arc .q__item--now .q__thumb { width: 3.1em; height: 3.1em; }
+.q--arc .q__item--now b { font-size: 1.12em; }
+.q--arc .q__item--past { opacity: calc(var(--fade, 1) * 0.5); }
+@keyframes q-in { from { opacity: 0; translate: -0.8em 0; } }
+.q--calm .q__item, .q--calm .q__note { animation-name: q-fade; }
+@keyframes q-fade { from { opacity: 0; } }
+
+/* list */
+.q--list { padding: 3%; }
+.q__card {
+  height: 100%; box-sizing: border-box; overflow: hidden;
+  display: flex; flex-direction: column; gap: 0.15em; padding: 0.8em;
+  border-radius: 1em; background: rgba(14, 14, 22, 0.72);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.08);
+}
+.q--list .q__item { text-shadow: none; width: 100%; }
+.q--list .q__item--now .q__thumb { width: 3.4em; height: 3.4em; }
+.q--list .q__item--now b { font-size: 1.15em; }
+.q__progress { height: 3px; border-radius: 3px; background: rgba(255,255,255,0.14); margin: 0.35em 0.5em 0.5em; overflow: hidden; flex: none; }
+.q__progress i { display: block; height: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, var(--q-accent), var(--q-accent-2)); }
+.q__heading { font-size: 0.66em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.5); margin: 0.6em 0.75em 0.2em; }
+.q__time { margin-left: auto; font-size: 0.78em; color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums; }
+.q--list .q__note { margin: 0.4em 0.75em; }
+
+/* ---------------------------------------------------------------- lyrics: kinetic */
+
+.lyr--kinetic { font-size: 0.88em; }
+.lyr__kin { line-height: 1.02; word-spacing: 0.12em; text-wrap: balance; }
+.lyr--kinetic.lyr--shift .lyr__line--cur { animation: none; }
+.lyr--kinetic .lyr__word.kin {
+  display: inline-block;
+  color: #fff;
+  opacity: 0;
+  transform: rotate(var(--rot, 0deg));
+  transition: none;
+}
+.lyr--kinetic .lyr__word.kin--accent { color: var(--glow); filter: brightness(1.25) saturate(1.1); }
+.lyr--kinetic .lyr__word.kin.lyr__word--sung { opacity: 1; animation: 0.42s cubic-bezier(0.2, 0.9, 0.25, 1.15) both; }
+.lyr--kinetic .lyr__word--sung.kin--pop { animation-name: kin-pop; }
+.lyr--kinetic .lyr__word--sung.kin--rise { animation-name: kin-rise; }
+.lyr--kinetic .lyr__word--sung.kin--drop { animation-name: kin-drop; }
+.lyr--kinetic .lyr__word--sung.kin--blur { animation-name: kin-blur; animation-timing-function: ease-out; }
+.lyr--kinetic .lyr__word--sung.kin--stretch { animation-name: kin-stretch; }
+.lyr--kinetic.lyr--glow .lyr__word--sung { text-shadow: 0 0 0.45em color-mix(in srgb, var(--glow) 70%, transparent), 0 2px 14px rgba(0, 0, 0, 0.45); }
+@keyframes kin-pop { from { opacity: 0; transform: rotate(var(--rot, 0deg)) scale(0.4); } }
+@keyframes kin-rise { from { opacity: 0; transform: rotate(var(--rot, 0deg)) translateY(0.6em); } }
+@keyframes kin-drop { from { opacity: 0; transform: rotate(var(--rot, 0deg)) translateY(-0.7em); } }
+@keyframes kin-blur { from { opacity: 0; filter: blur(0.3em); transform: rotate(var(--rot, 0deg)) scale(1.15); } }
+@keyframes kin-stretch { from { opacity: 0; transform: rotate(var(--rot, 0deg)) scaleX(1.8); letter-spacing: 0.3em; } }
+
+/* Calm mode: words still arrive one by one, but simply fade in, straight. */
+.lyr--calm.lyr--kinetic .lyr__word.kin { transform: none; }
+.lyr--calm.lyr--kinetic .lyr__word--sung { animation: lyr-fade 0.6s ease both !important; }

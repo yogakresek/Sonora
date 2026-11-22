@@ -156,74 +156,97 @@
 
 /* ---------------------------------------------------------------- queue */
 
-.q { --q-accent: #a855f7; --q-accent-2: #22d3ee; position: absolute; inset: 0; font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; color: #fff; }
-.q__thumb {
-  width: 2.6em; height: 2.6em; flex: none; border-radius: 0.5em; overflow: hidden;
-  display: grid; place-items: center; font-size: 1em; color: rgba(255,255,255,0.7);
-  background: linear-gradient(135deg, var(--q-accent), var(--q-accent-2));
-  box-shadow: 0 0.3em 0.9em rgba(0, 0, 0, 0.35);
+.q {
+  --q-accent: #a855f7; --q-accent-2: #22d3ee;
+  position: absolute; inset: 0;
+  font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  color: #fff;
 }
-.q__thumb img { width: 100%; height: 100%; object-fit: cover; }
-.q__text { display: flex; flex-direction: column; min-width: 0; line-height: 1.22; text-align: left; }
-.q__text b { font-weight: 650; font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.q__text span { font-size: 0.82em; color: rgba(255,255,255,0.65); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.q__label { font-size: 0.62em !important; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--q-accent) !important; filter: brightness(1.3); }
-.q__item {
-  display: flex; align-items: center; gap: 0.7em;
-  border: 0; background: transparent; color: inherit; font: inherit; padding: 0.35em 0.5em; border-radius: 0.7em;
-  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
-  transition: background 0.15s, transform 0.15s, opacity 0.2s;
-}
-button.q__item.is-hover, button.q__item:hover { background: rgba(255, 255, 255, 0.1); }
-button.q__item.is-active { background: rgba(255, 255, 255, 0.18); }
-.q__item--past { opacity: 0.45; }
-.q__item--past .q__thumb { filter: grayscale(0.6); }
-.q__note { font-size: 0.78em; color: rgba(255,255,255,0.72); text-shadow: 0 1px 8px rgba(0,0,0,0.7); max-width: 17em; line-height: 1.35; }
 
-/* arc */
-.q__disc {
-  --glow: 0.3;
-  position: absolute; border-radius: 50%; overflow: hidden;
-  display: grid; place-items: center; font-size: 3em; color: rgba(255,255,255,0.6);
+/* A song row: thumbnail, title over artist, optional time. */
+.q__row {
+  display: flex; align-items: center; gap: 0.75em;
+  box-sizing: border-box; min-width: 0;
+  padding: 0.3em 0.9em 0.3em 0.3em; border: 0; border-radius: 0.75em;
+  background: transparent; color: inherit; font: inherit; text-align: left;
+  transition: background 0.15s;
+}
+button.q__row.is-hover, button.q__row:hover { background: rgba(255, 255, 255, 0.1); }
+button.q__row.is-active { background: rgba(255, 255, 255, 0.18); }
+.q__thumb {
+  width: 2.5em; height: 2.5em; flex: none; border-radius: 0.45em; overflow: hidden;
+  display: grid; place-items: center;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--q-accent) 70%, #111), color-mix(in srgb, var(--q-accent-2) 55%, #111));
+  box-shadow: 0 0.25em 0.8em rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.q__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.q__thumb i { font-style: normal; color: rgba(255, 255, 255, 0.7); }
+.q__text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.q__text b { font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q__text > span:not(.q__label) { font-size: 0.82em; color: rgba(255, 255, 255, 0.62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q__label {
+  font-size: 0.6em; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--q-accent) 55%, #fff); margin-bottom: 0.1em;
+}
+.q__time { margin-left: auto; padding-left: 0.6em; font-size: 0.78em; color: rgba(255, 255, 255, 0.45); font-variant-numeric: tabular-nums; }
+.q__note { font-size: 0.8em; line-height: 1.4; color: rgba(255, 255, 255, 0.7); }
+.q__row--past .q__thumb { filter: saturate(0.4) brightness(0.8); }
+
+/* ---- arc: the time wheel */
+
+.q__disc { --glow: 0.25; position: absolute; }
+.q__art {
+  position: absolute; inset: 7%; border-radius: 50%; overflow: hidden;
+  display: grid; place-items: center; font-size: 2.6em; color: rgba(255, 255, 255, 0.6);
   background: linear-gradient(135deg, var(--q-accent), var(--q-accent-2));
-  box-shadow: 0 0 calc(1.2em + var(--glow) * 1.8em) color-mix(in srgb, var(--q-accent) calc(35% + var(--glow) * 40%), transparent),
-              inset 0 0 0 2px rgba(255,255,255,0.12);
+  box-shadow:
+    0 0 calc(1em + var(--glow) * 1.6em) color-mix(in srgb, var(--q-accent) calc(30% + var(--glow) * 45%), transparent),
+    0 1em 2.4em rgba(0, 0, 0, 0.45);
 }
-.q__disc img { width: 100%; height: 100%; object-fit: cover; }
-.q__arc { position: absolute; inset: 0; }
-.q--arc .q__item, .q--arc .q__note {
-  position: absolute; box-sizing: border-box;
-  transform: translateY(-50%) rotate(var(--tilt, 0deg));
+.q__art img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.q__ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
+.q__ring circle { fill: none; stroke-width: 1.6; }
+.q__ring-track { stroke: rgba(255, 255, 255, 0.14); }
+.q__ring-fill { stroke: color-mix(in srgb, var(--q-accent) 60%, #fff); stroke-linecap: round; transition: stroke-dashoffset 0.3s linear; }
+
+.q__wheel { position: absolute; inset: 0; }
+.q--arc .q__row, .q--arc .q__note {
+  position: absolute;
+  transform: translateY(-50%) scale(var(--s, 1));
   transform-origin: left center;
-  opacity: var(--fade, 1);
-  animation: q-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  animation-delay: calc(var(--i, 0) * 45ms);
+  opacity: var(--o, 1);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
+  transition: opacity 0.3s, background 0.15s, top 0.45s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: q-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: var(--delay, 0ms);
 }
-.q--arc .q__item--now { opacity: 1; }
-.q--arc .q__item--now .q__thumb { width: 3.1em; height: 3.1em; }
-.q--arc .q__item--now b { font-size: 1.12em; }
-.q--arc .q__item--past { opacity: calc(var(--fade, 1) * 0.5); }
-@keyframes q-in { from { opacity: 0; translate: -0.8em 0; } }
-.q--calm .q__item, .q--calm .q__note { animation-name: q-fade; }
+.q--arc .q__note { padding-left: 0.4em; max-width: 16em; }
+.q--arc .q__row--now { padding-top: 0.45em; padding-bottom: 0.45em; }
+.q--arc .q__row--now .q__thumb { width: 3em; height: 3em; }
+.q--arc .q__row--now b { font-size: 1.15em; }
+@keyframes q-in { from { opacity: 0; translate: -0.6em 0; } }
+.q--calm .q__row, .q--calm .q__note { animation-name: q-fade; }
 @keyframes q-fade { from { opacity: 0; } }
 
-/* list */
+/* ---- list: a card */
+
 .q--list { padding: 3%; }
 .q__card {
-  height: 100%; box-sizing: border-box; overflow: hidden;
-  display: flex; flex-direction: column; gap: 0.15em; padding: 0.8em;
-  border-radius: 1em; background: rgba(14, 14, 22, 0.72);
-  box-shadow: 0 10px 40px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.08);
+  height: 100%; box-sizing: border-box;
+  display: flex; flex-direction: column;
+  padding: 0.7em; border-radius: 1.1em;
+  background: rgba(16, 16, 24, 0.78);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
-.q--list .q__item { text-shadow: none; width: 100%; }
-.q--list .q__item--now .q__thumb { width: 3.4em; height: 3.4em; }
-.q--list .q__item--now b { font-size: 1.15em; }
-.q__progress { height: 3px; border-radius: 3px; background: rgba(255,255,255,0.14); margin: 0.35em 0.5em 0.5em; overflow: hidden; flex: none; }
+.q--list .q__row { width: 100%; }
+.q--list .q__row--now .q__thumb { width: 3.3em; height: 3.3em; border-radius: 0.55em; }
+.q--list .q__row--now b { font-size: 1.12em; }
+.q__progress { height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.12); margin: 0.5em 0.4em 0.4em; overflow: hidden; flex: none; }
 .q__progress i { display: block; height: 100%; transform-origin: left; transform: scaleX(0); background: linear-gradient(90deg, var(--q-accent), var(--q-accent-2)); }
-.q__heading { font-size: 0.66em; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.5); margin: 0.6em 0.75em 0.2em; }
-.q__time { margin-left: auto; font-size: 0.78em; color: rgba(255,255,255,0.5); font-variant-numeric: tabular-nums; }
-.q--list .q__note { margin: 0.4em 0.75em; }
-
+.q__scroll { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 0.1em;
+  mask-image: linear-gradient(#000 85%, transparent); }
+.q__heading { font-size: 0.62em; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); margin: 0.7em 0.5em 0.25em; }
+.q--list .q__note { margin: 0.5em; }
 /* ---------------------------------------------------------------- lyrics: kinetic */
 
 .lyr--kinetic { font-size: 0.88em; }

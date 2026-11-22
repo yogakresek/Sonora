@@ -1,5 +1,7 @@
 // Queue widget: what's playing and what comes next. Click a queued song to jump to it.
-//   arc  – a large round cover, the songs curving along its edge
+//   arc  – a "time wheel": the cover on the left with a progress ring; the song playing now sits
+//          level with the cover's centre, upcoming songs flow down and recent ones up, following
+//          the cover's curve and growing smaller and fainter the further they are from now
 //   list – a tidy card: now playing with progress, then the queue
 // Without a Spotify connection it shows the songs played before (from Windows' media controls)
 // and a short note on how to see the queue.
@@ -12,9 +14,11 @@ const NOTES: Record<string, string> = {
   'no-client': 'Sambungkan Spotify di dashboard untuk melihat lagu berikutnya',
   disconnected: 'Sambungkan Spotify di dashboard untuk melihat lagu berikutnya',
   connecting: 'Menunggu login Spotify di browser…',
-  empty: 'Antrean kosong. Tambahkan lagu di Spotify',
+  empty: 'Antrean kosong. Putar playlist atau album di Spotify',
   error: 'Antrean tidak bisa dimuat',
 };
+
+const RING = 2 * Math.PI * 48; // circumference of the progress ring (r = 48 in a 100×100 viewBox)
 
 export function createQueue(ctx: WidgetContext): WidgetModule {
   const root = document.createElement('div');
@@ -25,6 +29,7 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
   let calm = false;
   let key = '';
   let bar: HTMLElement | null = null;
+  let ring: SVGCircleElement | null = null;
   let disc: HTMLElement | null = null;
   let glow = 0;
 
@@ -35,17 +40,27 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
     else send({ type: 'queue-play', index: Number(el.dataset.index) });
   });
 
-  // Text scales with the box.
   new ResizeObserver(() => {
     const w = ctx.root.clientWidth, h = ctx.root.clientHeight;
-    root.style.fontSize = `${Math.max(9, Math.min(w / 22, h / 21))}px`;
+    root.style.fontSize = `${Math.max(9, Math.min(w / 24, h / 17))}px`;
     if (opts.style === 'arc') layoutArc();
   }).observe(ctx.root);
+
+  // ---------------------------------------------------------------- markup
+
+  function row(item: QueueItem | Track, cls: string, attrs: string, label?: string, time?: number): string {
+    const tag = attrs.includes('data-') ? 'button' : 'div';
+    return `<${tag} ${tag === 'button' ? 'type="button" data-nodrag' : ''} class="q__row ${cls}" ${attrs}>
+      ${thumb(item.cover)}
+      <span class="q__text">${label ? `<span class="q__label">${label}</span>` : ''}<b>${esc(item.title)}</b><span>${esc(item.artist)}</span></span>
+      ${time ? `<span class="q__time">${fmt(time)}</span>` : ''}
+    </${tag}>`;
+  }
 
   function render(state: WidgetState): void {
     const q = state.queue;
     const upcoming = q?.status === 'ok' ? q.items.slice(0, opts.count) : [];
-    const history = opts.showHistory ? (q?.history ?? []).slice(0, upcoming.length > 0 ? 2 : 4) : [];
+    const history = opts.showHistory ? (q?.history ?? []).slice(0, opts.style === 'arc' ? 2 : 3) : [];
     const note = q && q.status !== 'ok' ? (q.status === 'error' && q.error ? q.error : NOTES[q.status]) : !q ? NOTES.disconnected : '';
     const palette = resolvePalette(opts.colors, opts.custom, track);
 
@@ -53,66 +68,93 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
     root.style.setProperty('--q-accent', palette[0]);
     root.style.setProperty('--q-accent-2', palette[1] ?? palette[0]);
 
+    const nowLabel = track ? (track.playing ? 'Sedang diputar' : 'Dijeda') : 'Sonora';
     const now = track
-      ? `<button type="button" class="q__item q__item--now" data-now data-nodrag>
-           ${thumb(track.cover)}
-           <span class="q__text"><span class="q__label">${track.playing ? 'Sedang diputar' : 'Dijeda'}</span><b>${esc(track.title)}</b><span>${esc(track.artist)}</span></span>
-         </button>`
-      : `<div class="q__item q__item--now q__item--idle">${thumb(null)}<span class="q__text"><span class="q__label">Sonora</span><b>Tidak ada yang diputar</b><span>Putar lagu di Spotify</span></span></div>`;
-    const next = upcoming.map((it, i) =>
-      `<button type="button" class="q__item" data-index="${i}" data-nodrag style="--i:${i + 1}">${thumb(it.cover)}<span class="q__text"><b>${esc(it.title)}</b><span>${esc(it.artist)}</span></span>${opts.style === 'list' ? `<span class="q__time">${fmt(it.durationMs)}</span>` : ''}</button>`).join('');
-    const past = history.map((it, i) =>
-      `<div class="q__item q__item--past" style="--i:${upcoming.length + i + 1}">${thumb(it.cover)}<span class="q__text"><b>${esc(it.title)}</b><span>${esc(it.artist)}</span></span></div>`).join('');
+      ? row(track, 'q__row--now', 'data-now', nowLabel)
+      : `<div class="q__row q__row--now q__row--idle">${thumb(null)}<span class="q__text"><span class="q__label">Sonora</span><b>Tidak ada yang diputar</b><span>Putar lagu di Spotify</span></span></div>`;
+    const next = upcoming.map((it, i) => row(it, '', `data-index="${i}"`, undefined, opts.style === 'list' ? it.durationMs : 0));
+    const noteHtml = note ? `<div class="q__note">${esc(note)}</div>` : '';
 
     if (opts.style === 'arc') {
+      // Order on the wheel: oldest at the top, now in the middle, next below.
+      const past = history.slice().reverse().map((it) => row(it, 'q__row--past', ''));
       root.innerHTML = `
-        <div class="q__disc">${track?.cover ? `<img src="${esc(track.cover)}" alt="">` : '<span>♪</span>'}</div>
-        <div class="q__arc">${now}${next}${note ? `<div class="q__note" style="--i:${upcoming.length + 1}">${esc(note)}</div>` : ''}${past}</div>`;
+        <div class="q__disc">
+          <div class="q__art">${track?.cover ? `<img src="${esc(track.cover)}" alt="">` : '<span>♪</span>'}</div>
+          <svg class="q__ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="q__ring-track" cx="50" cy="50" r="48"/><circle class="q__ring-fill" cx="50" cy="50" r="48" stroke-dasharray="${RING}" stroke-dashoffset="${RING}"/></svg>
+        </div>
+        <div class="q__wheel" data-center="${past.length}">${past.join('')}${now}${next.join('')}${noteHtml}</div>`;
       disc = root.querySelector('.q__disc');
+      ring = root.querySelector('.q__ring-fill');
+      bar = null;
       layoutArc();
     } else {
+      const past = history.map((it) => row(it, 'q__row--past', ''));
       root.innerHTML = `
         <div class="q__card">
           ${now}
           <div class="q__progress"><i></i></div>
-          ${upcoming.length ? '<div class="q__heading">Berikutnya</div>' : ''}${next}
-          ${note ? `<div class="q__note">${esc(note)}</div>` : ''}
-          ${past ? '<div class="q__heading">Sebelumnya</div>' + past : ''}
+          <div class="q__scroll">
+            ${next.length ? `<div class="q__heading">Berikutnya</div>${next.join('')}` : ''}
+            ${noteHtml}
+            ${past.length ? `<div class="q__heading">Sebelumnya</div>${past.join('')}` : ''}
+          </div>
         </div>`;
       disc = null;
+      ring = null;
+      bar = root.querySelector('.q__progress i');
     }
-    bar = root.querySelector('.q__progress i');
   }
 
-  /** Places the arc's rows along a circle around the disc. */
+  // ---------------------------------------------------------------- the wheel
+
+  /** Positions the wheel's rows: evenly spaced by their real heights, bending around the cover. */
   function layoutArc(): void {
-    const arc = root.querySelector<HTMLElement>('.q__arc');
+    const wheel = root.querySelector<HTMLElement>('.q__wheel');
     const d = root.querySelector<HTMLElement>('.q__disc');
-    if (!arc || !d) return;
+    if (!wheel || !d) return;
     const W = ctx.root.clientWidth, H = ctx.root.clientHeight;
-    const size = Math.min(H * 0.7, W * 0.62);
-    const cx = size * 0.5 + W * 0.02, cy = H / 2;
+    const em = parseFloat(getComputedStyle(root).fontSize) || 14;
+    const size = Math.min(H * 0.8, W * 0.46);
+    const cx = size / 2 + em * 0.6, cy = H / 2;
     d.style.width = d.style.height = `${size}px`;
     d.style.left = `${cx - size / 2}px`;
     d.style.top = `${cy - size / 2}px`;
 
-    // Rows are evenly spaced top to bottom; each sits just outside the disc's edge at its height,
-    // which bends the column into an arc without rows crowding at the ends.
-    const rows = [...arc.children] as HTMLElement[];
-    const n = rows.length;
-    const em = parseFloat(getComputedStyle(root).fontSize) || 14;
-    const r = size / 2 + Math.max(10, size * 0.06);
-    const step = Math.min(em * 3.5, (H * 0.92) / Math.max(1, n));
-    rows.forEach((row, i) => {
-      const dy = (i - (n - 1) / 2) * step + (i === 0 ? -em * 0.2 : 0);
-      const inside = Math.min(1, Math.abs(dy) / r);
-      const x = cx + Math.sqrt(Math.max(0, r * r - dy * dy)) - (inside > 0.95 ? r * 0.15 : 0);
-      const deg = (Math.asin(Math.max(-1, Math.min(1, dy / r))) * 180) / Math.PI;
-      row.style.left = `${x}px`;
-      row.style.top = `${cy + dy}px`;
-      row.style.maxWidth = `${Math.max(em * 6, W - x - em * 0.6)}px`;
-      row.style.setProperty('--tilt', calm ? '0deg' : `${deg * 0.3}deg`);
-      row.style.setProperty('--fade', String(Math.max(0.4, 1 - Math.abs(deg) / 130)));
+    const rows = [...wheel.children] as HTMLElement[];
+    const center = Number(wheel.dataset.center) || 0;
+    const r = size / 2 + em * 0.9;
+    const gap = em * 0.35;
+
+    // Scale and fade by distance from "now".
+    const scaleOf = (dist: number) => (dist === 0 ? 1 : Math.max(0.72, 0.9 - (dist - 1) * 0.06));
+    const fadeOf = (dist: number, past: boolean) => (dist === 0 ? 1 : Math.max(0.28, (past ? 0.55 : 0.92) - (dist - 1) * 0.14));
+
+    // Heights first (unscaled), then walk outwards from the centre so rows never overlap.
+    const heights = rows.map((el) => el.offsetHeight || em * 2.8);
+    const ys: number[] = new Array(rows.length);
+    ys[center] = cy;
+    for (let i = center + 1; i < rows.length; i++) {
+      ys[i] = ys[i - 1] + (heights[i - 1] * scaleOf(i - 1 - center) + heights[i] * scaleOf(i - center)) / 2 + gap;
+    }
+    for (let i = center - 1; i >= 0; i--) {
+      ys[i] = ys[i + 1] - (heights[i + 1] * scaleOf(center - i - 1) + heights[i] * scaleOf(center - i)) / 2 - gap;
+    }
+
+    rows.forEach((el, i) => {
+      const dist = Math.abs(i - center);
+      const s = scaleOf(dist);
+      const dy = ys[i] - cy;
+      // Follow the cover's edge while the row is beside it; straight down beyond it.
+      const x = cx + Math.sqrt(Math.max(0, r * r - Math.min(r * r, dy * dy))) * (Math.abs(dy) < r ? 1 : 0) + (Math.abs(dy) >= r ? em * 0.4 : 0);
+      const visible = ys[i] - (heights[i] * s) / 2 >= -2 && ys[i] + (heights[i] * s) / 2 <= H + 2;
+      el.style.left = `${x}px`;
+      el.style.top = `${ys[i]}px`;
+      el.style.maxWidth = `${Math.max(em * 6, (W - x - em * 0.5) / s)}px`;
+      el.style.setProperty('--s', s.toFixed(3));
+      el.style.setProperty('--o', visible ? fadeOf(dist, i < center).toFixed(3) : '0');
+      el.style.pointerEvents = visible ? '' : 'none';
+      el.style.setProperty('--delay', `${Math.min(dist, 6) * 40}ms`);
     });
   }
 
@@ -124,7 +166,7 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
       // Rebuild only when something visible changed (keeps hover state stable).
       const q = state.queue;
       const next = JSON.stringify([opts, calm, track?.title, track?.artist, track?.cover, track?.playing, q?.status, q?.error,
-        q?.items.slice(0, opts.count).map((i) => i.title + i.artist), q?.history.slice(0, 4).map((i) => i.title)]);
+        q?.items.slice(0, opts.count).map((i) => i.title + i.artist + i.cover), q?.history.slice(0, 3).map((i) => i.title)]);
       if (next !== key) {
         key = next;
         render(state);
@@ -132,13 +174,12 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
     },
 
     frame(f: AudioFrame, dt: number): boolean {
-      if (bar && track) {
-        const p = track.durationMs > 0 ? trackPosition(track) / track.durationMs : 0;
-        bar.style.transform = `scaleX(${p})`;
-      }
+      const p = track && track.durationMs > 0 ? Math.min(1, trackPosition(track) / track.durationMs) : 0;
+      if (bar) bar.style.transform = `scaleX(${p})`;
+      if (ring) ring.style.strokeDashoffset = String(RING * (1 - p));
       if (disc) {
-        const target = calm ? 0.35 : 0.3 + 0.7 * f.kick;
-        glow += (target - glow) * Math.min(1, dt * (calm ? 1.5 : 10));
+        const target = calm ? 0.3 : 0.25 + 0.6 * f.kick;
+        glow += (target - glow) * Math.min(1, dt * (calm ? 1.5 : 8));
         disc.style.setProperty('--glow', glow.toFixed(3));
       }
       return !!track?.playing;
@@ -147,7 +188,7 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
 }
 
 function thumb(url: string | null): string {
-  return `<span class="q__thumb">${url ? `<img src="${esc(url)}" alt="">` : '♪'}</span>`;
+  return `<span class="q__thumb">${url ? `<img src="${esc(url)}" alt="">` : '<i>♪</i>'}</span>`;
 }
 
 function fmt(ms: number): string {

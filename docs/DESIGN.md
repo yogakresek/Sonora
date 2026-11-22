@@ -2,7 +2,7 @@
 
 ## Prinsip
 1. **Pratinjau dulu, kontrol kemudian.** Setiap halaman widget dibuka dengan pratinjau hidup yang besar. Semua
-   perubahan langsung terlihat di pratinjau sekaligus di desktop. aplikasi referensi menampilkan daftar pengaturan yang panjang;
+   perubahan langsung terlihat di pratinjau sekaligus di desktop. Aplikasi sejenis biasanya menampilkan daftar pengaturan yang panjang;
    kita menampilkan hasilnya lebih dulu.
 2. **Default yang sudah bagus.** Warna otomatis mengikuti cover, ukuran pas, dan efek secukupnya. Pengguna tidak
    wajib mengatur apa pun.

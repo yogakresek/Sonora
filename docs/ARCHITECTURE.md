@@ -3,14 +3,14 @@
 > "Sonora" hanya nama sementara. Aplikasi ini widget desktop Windows yang hidup mengikuti musik:
 > visualizer, lirik, now-playing, dan wallpaper yang bergerak. Semuanya gratis dan open source (MIT).
 >
-> **Aturan clean-room:** fitur aplikasi referensi dipakai sebagai *daftar kebutuhan* saja. Semua kode, shader,
-> desain visual, ikon, dan teks ditulis sendiri. Tidak ada satu baris pun yang disalin dari aplikasi referensi.
+> **Aturan clean-room:** aplikasi sejenis hanya dipakai sebagai referensi *daftar kebutuhan*. Semua kode, shader,
+> desain visual, ikon, dan teks ditulis sendiri. Tidak ada kode yang disalin dari aplikasi lain.
 
 ---
 
-## 1. Tujuan dan pembeda dari aplikasi referensi
+## 1. Tujuan dan pembeda dari aplikasi sejenis
 
-| aplikasi referensi | Sonora |
+| Aplikasi sejenis (berbasis Electron, berbayar) | Sonora |
 |---|---|
 | Electron: 1 proses Chromium per widget, RAM berat | 1 proses native + WebView2 bersama; widget desktop digabung per monitor |
 | 4 helper .exe terpisah yang bicara lewat stdout | Audio, media, dan sistem langsung di proses inti (tanpa pipe) |
@@ -247,7 +247,7 @@ Kolom "Teknik kita" adalah rancangan implementasi kita sendiri.
 | Hemat daya | Lihat 4.7 |
 | Auto-update | GitHub Releases, selalu minta izin dulu |
 
-### Tambahan yang tidak ada di aplikasi referensi
+### Tambahan yang tidak umum di aplikasi sejenis
 - Plugin API dan galeri scene komunitas
 - Deteksi BPM dan beat phase (animasi terkunci ke tempo, bukan sekadar reaksi kick)
 - Equalizer-aware sensitivity (AGC otomatis)
@@ -284,7 +284,7 @@ sonora/
 | M0 | Setup toolchain, skeleton host + WebView2, tray | Ikon tray, jendela kosong |
 | M1 | AudioEngine + MediaService + bridge SharedBuffer | Panel debug menampilkan spektrum dan lagu |
 | M2 | DesktopService L1 + engine widget + 3 visualizer + jam | Widget hidup di desktop, bisa di-drag dan resize |
-| M3 | Lirik + now playing + dashboard dasar + settings | Paket fitur "gratis" aplikasi referensi tercapai |
+| M3 | Lirik + now playing + dashboard dasar + settings | Fitur dasar setara aplikasi sejenis tercapai |
 | M4 | Widget kotak gelombang 1: Orb, Scope, Meters, Waterfall, Particles, Snow | |
 | M5 | L0 wallpaper: Album backdrop, Waves, Span, Environments | |
 | M6 | Vinyl, CD, Cassette, Neon, Terrain, Murmuration, Fluid | |

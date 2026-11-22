@@ -24,6 +24,9 @@ public static class AppInfo
 
     public static string LogDir { get; } = Path.Combine(DataDir, "logs");
 
+    /// <summary>Album art, lyrics and other things that can be fetched again.</summary>
+    public static string CacheDir { get; } = Path.Combine(DataDir, "cache");
+
     /// <summary>Built frontend shipped beside the exe.</summary>
     public static string WebDir { get; } = Path.Combine(AppContext.BaseDirectory, "web");
 
@@ -38,5 +41,6 @@ public static class AppInfo
         Directory.CreateDirectory(DataDir);
         Directory.CreateDirectory(WebViewDir);
         Directory.CreateDirectory(LogDir);
+        Directory.CreateDirectory(CacheDir);
     }
 }

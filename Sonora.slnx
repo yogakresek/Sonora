@@ -2,4 +2,7 @@
   <Folder Name="/host/">
     <Project Path="host/Sonora.Host/Sonora.Host.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sonora.Tests/Sonora.Tests.csproj" />
+  </Folder>
 </Solution>

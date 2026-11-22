@@ -93,6 +93,10 @@ mulus diakses dari C#. Selisih RAM-nya kecil dibandingkan WebView2-nya sendiri.
 ### 4.1 AudioEngine
 - WASAPI loopback pada default render device; ikut berpindah saat device berganti. Downmix ke mono dan
   disimpan stereo terpisah untuk scope X-Y.
+- Implementasi: NAudio 3 `WasapiRecorderBuilder`. NAudio 3 juga mendukung **process loopback**, jadi nanti bisa ada opsi
+  "tangkap Spotify saja" agar suara Discord atau notifikasi tidak ikut tervisualisasi.
+- Engine hanya berjalan selama ada yang menampilkannya (sistem lease). Dashboard yang ditutup benar-benar dibuang,
+  sehingga proses WebView2 ikut berhenti (terukur: host 23 MB, 0,03% CPU).
 - Pipeline per hop (1024 sampel @48 kHz ≈ 21 ms; dikirim ±60 Hz):
   - FFT 4096 Hann → 128 band log, plus 1/3-oktaf untuk meter
   - Smoothing attack/release per band; AGC (sensitivitas otomatis)

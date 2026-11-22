@@ -3,7 +3,7 @@
 Widget musik untuk desktop Windows: visualizer, lirik tersinkron, dan wallpaper hidup. Gratis dan open source.
 Rancangan lengkapnya ada di [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Status:** M0 — kerangka aplikasi (tray, dashboard WebView2, bridge host ↔ web).
+**Status:** M1 — audio engine (WASAPI loopback, spektrum, kick, BPM) dan koneksi otomatis ke Spotify/SMTC, dengan panel debug di dashboard.
 
 ## Kebutuhan
 - Windows 10 19041+ / Windows 11
@@ -25,10 +25,16 @@ Di terminal lain:
 $env:SONORA_DEV_URL = "http://localhost:5173"; dotnet run --project host/Sonora.Host
 ```
 
+## Tes
+```powershell
+dotnet test
+```
+
 ## Struktur
 ```
 host/Sonora.Host/   proses inti .NET (tray, jendela, nanti audio/media/desktop)
 web/                frontend TypeScript + Vite (dashboard, nanti widget)
+tests/              unit test (analyzer audio)
 docs/               rancangan
 ```
 

@@ -7,11 +7,18 @@ public sealed class TrayApp : ApplicationContext
     private readonly NotifyIcon _tray;
     private readonly Icon _icon;
     private readonly IDisposable _showListener;
+    private readonly Services _services;
     private DashboardForm? _dashboard;
 
     public TrayApp()
     {
+        // Make sure WinForms' context is installed before anything captures it.
+        if (SynchronizationContext.Current is not WindowsFormsSynchronizationContext)
+            SynchronizationContext.SetSynchronizationContext(new WindowsFormsSynchronizationContext());
+        var ui = SynchronizationContext.Current!;
+
         _icon = AppIcon.Create(32);
+        _services = new Services(ui);
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("Buka dashboard", null, (_, _) => ShowDashboard());
@@ -30,7 +37,7 @@ public sealed class TrayApp : ApplicationContext
             if (e.Button == MouseButtons.Left) ShowDashboard();
         };
 
-        _showListener = SingleInstance.Listen(SynchronizationContext.Current!, ShowDashboard);
+        _showListener = SingleInstance.Listen(ui, ShowDashboard);
 
         // First run of M0: open the dashboard so there is something to see.
         ShowDashboard();
@@ -39,7 +46,7 @@ public sealed class TrayApp : ApplicationContext
     private void ShowDashboard()
     {
         if (_dashboard is null || _dashboard.IsDisposed)
-            _dashboard = new DashboardForm(_icon);
+            _dashboard = new DashboardForm(_icon, _services);
 
         if (!_dashboard.Visible) _dashboard.Show();
         if (_dashboard.WindowState == FormWindowState.Minimized) _dashboard.WindowState = FormWindowState.Normal;
@@ -49,7 +56,6 @@ public sealed class TrayApp : ApplicationContext
     private void Quit()
     {
         _tray.Visible = false;
-        _dashboard?.AllowClose();
         _dashboard?.Close();
         ExitThread();
     }
@@ -61,6 +67,7 @@ public sealed class TrayApp : ApplicationContext
             _showListener.Dispose();
             _tray.Dispose();
             _dashboard?.Dispose();
+            _services.Dispose();
             _icon.Dispose();
         }
         base.Dispose(disposing);

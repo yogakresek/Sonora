@@ -54,6 +54,7 @@ export const icon = {
   calm: stroke('<path d="M3 14c2.5-3 4.5-3 7 0s4.5 3 7 0 3.5-2 4-2"/><path d="M3 9c2.5-3 4.5-3 7 0s4.5 3 7 0 3.5-2 4-2" opacity=".55"/>'),
   queue: stroke('<path d="M4 6.5h11M4 11.5h11M4 16.5h7"/><path d="M17 14.5v5l4-2.5z" fill="currentColor"/>'),
   trash: stroke('<path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12.2a1 1 0 0 0 1 .8h7.2a1 1 0 0 0 1-.8L17.5 7"/><path d="M10 11v5.5M14 11v5.5"/>'),
+  star: stroke('<path d="M12 3.5l1.6 6.9 6.9 1.6-6.9 1.6L12 20.5l-1.6-6.9L3.5 12l6.9-1.6z"/><circle cx="19" cy="5" r="1" fill="currentColor"/><circle cx="5.5" cy="18.5" r="0.8" fill="currentColor"/>'),
   info: stroke('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h0"/>'),
 };
 
@@ -73,6 +74,12 @@ export function group(title: string, ...rows: Child[]): HTMLElement {
 
 /** One setting: icon, label and description on the left, control on the right. */
 export function row(label: string, desc: string | null, control: Child, ico?: string): HTMLElement {
+  // Give the control the row's label as its accessible name (screen readers, UI Automation).
+  if (control instanceof HTMLElement) {
+    for (const input of control.querySelectorAll<HTMLElement>('input, button, [role="radiogroup"]')) {
+      if (!input.getAttribute('aria-label')) input.setAttribute('aria-label', label);
+    }
+  }
   return h('div', { class: 'row' },
     ico ? h('span', { class: 'row__icon', html: ico }) : null,
     h('div', { class: 'row__text' }, h('div', { class: 'row__label', text: label }), desc ? h('div', { class: 'row__desc', text: desc }) : null),

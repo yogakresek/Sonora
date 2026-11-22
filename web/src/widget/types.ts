@@ -26,6 +26,8 @@ export interface VisualizerOptions {
   glow: boolean;
   beat: boolean;
   showTitle: boolean;
+  /** A slim line under the visualizer showing how far the song is (the seek bar appears on hover either way). */
+  progress: boolean;
 }
 
 export const VISUALIZER_DEFAULTS: VisualizerOptions = {
@@ -36,6 +38,7 @@ export const VISUALIZER_DEFAULTS: VisualizerOptions = {
   glow: true,
   beat: true,
   showTitle: false,
+  progress: true,
 };
 
 export const VISUALIZER_STYLES: { id: VisualizerStyle; name: string; hint: string }[] = [
@@ -103,6 +106,21 @@ export const QUEUE_STYLES: { id: QueueStyle; name: string; hint: string }[] = [
   { id: 'list', name: 'Daftar', hint: 'Kartu rapi: sedang diputar, lalu antrean' },
 ];
 
+export interface StarOptions {
+  /** How dark the sky over the wallpaper is, 0.4..0.95. */
+  dim: number;
+  /** Cover, title and artist in the corner. */
+  info: boolean;
+  /** Faint background stars that twinkle (never in Mode santai). */
+  twinkle: boolean;
+  /** 0.8..1.3 text scale. */
+  size: number;
+  /** The sky is made from the album cover (each song its own); off = the darkened wallpaper. */
+  backdrop: boolean;
+}
+
+export const STAR_DEFAULTS: StarOptions = { dim: 0.8, info: true, twinkle: true, size: 1, backdrop: true };
+
 export function withDefaults<T extends object>(defaults: T, options: Record<string, unknown> | null | undefined): T {
   const out = { ...defaults } as Record<string, unknown>;
   if (options) {
@@ -132,6 +150,8 @@ export interface WidgetModule {
   update(state: WidgetState): void;
   /** Draw one frame. Return true while something is still moving, so the loop keeps full speed. */
   frame(audio: AudioFrame, dt: number, now: number): boolean;
+  /** Desktop only: the pointer's comings and goings (physical px relative to the widget). */
+  pointer?(kind: string, x: number, y: number): void;
   destroy?(): void;
 }
 

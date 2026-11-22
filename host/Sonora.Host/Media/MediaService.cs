@@ -28,6 +28,7 @@ public sealed class MediaService : IDisposable
     private string? _trackKey;
     private string? _cover;
     private IReadOnlyList<string>? _palette;
+    private readonly PlaybackClock _clock = new();
     private int _coverAttempts;
     private bool _refreshing, _refreshAgain, _refreshQueued;
     private bool _disposed;
@@ -87,6 +88,27 @@ public sealed class MediaService : IDisposable
         catch (Exception ex)
         {
             Log.Error($"Media command '{command}' failed", ex);
+        }
+        QueueRefresh();
+    }
+
+    /// <summary>
+    /// Jumps within the current track (Spotify supports this through the media controls, no
+    /// Premium needed). The player answers with a fresh timeline report straight away.
+    /// </summary>
+    public async Task SeekAsync(double positionMs)
+    {
+        var session = FindSession(_currentAppId);
+        if (session is null || Current is not { CanSeek: true } track) return;
+        positionMs = Math.Clamp(positionMs, 0, Math.Max(0, track.DurationMs - 500));
+        try
+        {
+            var start = session.GetTimelineProperties().StartTime;
+            await session.TryChangePlaybackPositionAsync((start + TimeSpan.FromMilliseconds(positionMs)).Ticks);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Seek failed", ex);
         }
         QueueRefresh();
     }
@@ -227,14 +249,18 @@ public sealed class MediaService : IDisposable
         double duration = (timeline.EndTime - timeline.StartTime).TotalMilliseconds;
         double position = (timeline.Position - timeline.StartTime).TotalMilliseconds;
         var updated = timeline.LastUpdatedTime;
-        long updatedAt = updated.Year < 2000 ? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() : updated.ToUnixTimeMilliseconds();
+        long? reportedAt = updated.Year < 2000 ? null : updated.ToUnixTimeMilliseconds();
+        bool playing = playback.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+        var (clockPos, clockAt) = _clock.Update(key, playing, Math.Max(0, position), reportedAt, Math.Max(0, duration),
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
         var controls = playback.Controls;
         return new TrackState(
             title, artist, album, appId, FriendlyAppName(appId), _cover,
-            playback.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing,
-            Math.Max(0, position), Math.Max(0, duration), updatedAt,
-            controls.IsPlayPauseToggleEnabled, controls.IsNextEnabled, controls.IsPreviousEnabled, _palette);
+            playing,
+            clockPos, Math.Max(0, duration), clockAt,
+            controls.IsPlayPauseToggleEnabled, controls.IsNextEnabled, controls.IsPreviousEnabled, _palette,
+            controls.IsPlaybackPositionEnabled && duration > 0);
     }
 
     private void Publish(TrackState? state)

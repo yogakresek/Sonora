@@ -89,7 +89,18 @@ export function homePage(container: HTMLElement): () => void {
     }
   }
   buildCards();
-  cleanups.push(on('widgets', buildCards));
+  // Toggling a widget only changes its switch and dimming; rebuild only if the set of widgets changed.
+  let ids = store.widgets.map((w) => w.id).join();
+  cleanups.push(on('widgets', () => {
+    const next = store.widgets.map((w) => w.id).join();
+    if (next !== ids) { ids = next; buildCards(); return; }
+    store.widgets.forEach((w, i) => {
+      const card = grid.children[i] as HTMLElement | undefined;
+      card?.classList.toggle('card--off', !w.enabled);
+      (card?.querySelector('.toggle') as ReturnType<typeof toggle> | null)?.set?.(w.enabled);
+      previews[i]?.refresh();
+    });
+  }));
   cleanups.push(on('track', () => previews.forEach((p) => p.refresh())));
   cleanups.push(on('lyrics', () => previews.forEach((p) => p.refresh())));
   cleanups.push(on('queue', () => previews.forEach((p) => p.refresh())));
@@ -111,6 +122,18 @@ export function homePage(container: HTMLElement): () => void {
   showStatus();
   for (const topic of ['audio', 'track', 'lyrics'] as const) cleanups.push(on(topic, showStatus));
 
+  // While Star Mode is on, the widgets are put away: say so here, or their switches look broken.
+  const starNote = h('div', { class: 'star-note' });
+  function showStarNote(): void {
+    starNote.hidden = !store.star.on;
+    if (!store.star.on) return;
+    starNote.innerHTML = `<span class="star-note__icon">${icon.star}</span>
+      <span class="star-note__text"><b>Star Mode sedang menyala</b><span>Widget di bawah disembunyikan sementara dan kembali seperti semula saat Star Mode dimatikan.</span></span>`;
+    starNote.append(h('button', { class: 'btn btn--default', attrs: { type: 'button' }, on: { click: () => send({ type: 'star-mode', on: false }) } }, 'Matikan Star Mode'));
+  }
+  showStarNote();
+  cleanups.push(on('widgets', showStarNote));
+
   const calm = toggle(store.prefs.calm, (v) => setPrefs({ calm: v }));
   cleanups.push(on('prefs', () => calm.set(store.prefs.calm)));
 
@@ -122,6 +145,7 @@ export function homePage(container: HTMLElement): () => void {
     hero,
     chips,
     h('h2', { class: 'section-title', text: 'Widget di desktop' }),
+    starNote,
     grid);
 
   return () => {

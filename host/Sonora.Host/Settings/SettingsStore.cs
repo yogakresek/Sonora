@@ -24,6 +24,9 @@ public sealed class AppSettings
     public bool FirstRunDone { get; set; }
     /// <summary>Hide every widget without forgetting which are on (tray toggle).</summary>
     public bool WidgetsHidden { get; set; }
+    /// <summary>Star Mode: one full-screen constellation of lyrics instead of the widgets, until turned off.
+    /// The widgets' own Enabled flags are left alone, so they come back exactly as they were.</summary>
+    public bool StarMode { get; set; }
     /// <summary>Shifts every lyric line; positive = words appear later.</summary>
     public int LyricsOffsetMs { get; set; }
     /// <summary>Widget drawing rate: 60 (smooth) or 30 (light).</summary>

@@ -12,6 +12,7 @@ import {
   LYRICS_DEFAULTS, resolvePalette, withDefaults,
   type LyricsOptions, type LyricsStyle, type WidgetContext, type WidgetModule, type WidgetState,
 } from './types';
+import { BUSY_RATE, VocalOnsets, WordGate, estimateWords } from './word-gate';
 
 interface Word { el: HTMLElement; at: number; sung: boolean }
 
@@ -36,6 +37,8 @@ export function createLyrics(ctx: WidgetContext): WidgetModule {
   let track: Track | null = null;
   let lines: LyricLine[] = [];
   let offset = 0;
+  const onsets = new VocalOnsets();
+  let gate = new WordGate();
   let calm = false;
   let index = -2;
   let dotsShown = false;
@@ -54,11 +57,40 @@ export function createLyrics(ctx: WidgetContext): WidgetModule {
 
   // ---------------------------------------------------------------- layout
 
+  let base = 16;
+
   function resize(): void {
     const w = ctx.root.clientWidth, h = ctx.root.clientHeight;
-    const base = Math.max(10, Math.min(h / 4.4, w / 11.5)) * opts.size;
-    box.style.fontSize = `${base}px`;
+    base = Math.max(10, Math.min(h / 4.4, w / 11.5)) * opts.size;
+    fit();
     if (listEl) centerActive(false);
+  }
+
+  /**
+   * Shrinks the text until the current lines fit inside the box, so a long line (or one huge
+   * kinetic word) never spills past the widget's edge. The flow style scrolls by design and only
+   * needs the base size.
+   */
+  function fit(): void {
+    box.style.fontSize = `${base}px`;
+    if (listEl) return;
+    const target = box.querySelector<HTMLElement>('.lyr__card') ?? box;
+    let scale = 1;
+    for (let pass = 0; pass < 5; pass++) {
+      const cs = getComputedStyle(target);
+      const availH = target.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      const availW = target.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const kids = [...target.children] as HTMLElement[];
+      const gap = parseFloat(cs.rowGap) || 0;
+      const needH = kids.reduce((sum, k) => sum + k.offsetHeight, 0) + gap * Math.max(0, kids.length - 1);
+      let needW = availW;
+      for (const line of target.querySelectorAll<HTMLElement>('.lyr__line')) needW = Math.max(needW, line.scrollWidth);
+      const ratio = Math.min(needH > 0 ? availH / needH : 1, availW / needW);
+      if (ratio >= 0.995 || availH <= 0) break;
+      // Wrapping changes as the text shrinks, so step down and measure again.
+      scale *= Math.max(0.5, ratio * 0.97);
+      box.style.fontSize = `${Math.max(8, base * scale)}px`;
+    }
   }
   new ResizeObserver(resize).observe(ctx.root);
 
@@ -138,23 +170,17 @@ export function createLyrics(ctx: WidgetContext): WidgetModule {
 
   /** Replaces el's text with word spans timed across the line; returns them. */
   function fillWords(el: HTMLElement, i: number): Word[] {
-    const cur = lines[i];
-    const next = lines[i + 1];
     el.textContent = '';
-    const parts = cur.text.split(/(\s+)/);
-    const chars = parts.filter((p) => p.trim()).reduce((n, t) => n + t.length + 1, 0) || 1;
-    const until = next ? next.t : cur.t + 5000;
-    const span = Math.min(until - cur.t, Math.max(1200, chars * 85)) * 0.9;
+    const parts = lines[i].text.split(/(\s+)/);
+    const timed = estimateWords(lines[i], lines[i + 1]); // see word-gate.ts
     const out: Word[] = [];
-    let acc = 0;
     for (const part of parts) {
       if (!part.trim()) { el.append(part); continue; }
       const w = document.createElement('span');
       w.className = 'lyr__word';
       w.textContent = part;
-      if (opts.style === 'kinetic') decorate(w, part, out.length, i, parts.filter((p) => p.trim()).length);
-      out.push({ el: w, at: cur.t + (acc / chars) * span, sung: false });
-      acc += part.length + 1;
+      if (opts.style === 'kinetic') decorate(w, part, out.length, i, timed.length);
+      out.push({ el: w, at: timed[out.length].at, sung: false });
       el.append(w);
     }
     return out;
@@ -198,8 +224,10 @@ export function createLyrics(ctx: WidgetContext): WidgetModule {
         curEl.append(dots);
       } else if (cur) {
         words = fillWords(curEl, idx);
+        gate = new WordGate(); // learn this line's pace from scratch
       }
     }
+    fit();
     box.classList.remove('lyr--shift');
     void box.offsetWidth; // restart the line-change animation
     box.classList.add('lyr--shift');
@@ -241,13 +269,14 @@ export function createLyrics(ctx: WidgetContext): WidgetModule {
         index = -2;
         if (listEl) fillList();
       }
-      if (prevOpts.size !== opts.size) resize();
       applyLook();
+      if (prevOpts.size !== opts.size || prevOpts.weight !== opts.weight || prevOpts.style !== opts.style) resize();
 
       hint.textContent = !track ? HINTS.idle : !valid ? HINTS.loading : l!.status === 'synced' ? '' : HINTS[l!.status] ?? '';
     },
 
-    frame(f: AudioFrame): boolean {
+    frame(f: AudioFrame, _dt: number, now: number): boolean {
+      const onset = onsets.update(f.bands, now);
       if (!track || lines.length === 0) {
         if (index !== -2) {
           index = -2;
@@ -267,11 +296,16 @@ export function createLyrics(ctx: WidgetContext): WidgetModule {
         render(idx, pos);
       }
 
-      for (const w of words) {
-        const sung = pos >= w.at;
-        if (sung !== w.sung) {
-          w.sung = sung;
-          w.el.classList.toggle('lyr__word--sung', sung);
+      if (builtStyle === 'kinetic') {
+        // Words appear one by one, so wait for the singer: see word-gate.ts.
+        for (const i of gate.update(words, pos, onset, onsets.rate > BUSY_RATE)) words[i].el.classList.add('lyr__word--sung');
+      } else {
+        for (const w of words) {
+          const sung = pos >= w.at;
+          if (sung !== w.sung) {
+            w.sung = sung;
+            w.el.classList.toggle('lyr__word--sung', sung);
+          }
         }
       }
 

@@ -40,6 +40,10 @@ function paint(el: HTMLElement): void {
   const q = store.queue;
   const status = q?.status ?? 'no-client';
   const connected = status === 'ok' || status === 'empty';
+  // The queue is polled every few seconds; only redraw when what the card shows changed.
+  const sig = JSON.stringify([status, connected ? q?.items.length : q?.clientId, q?.error, store.spotifyRedirectUri]);
+  if (el.dataset.sig === sig) return;
+  el.dataset.sig = sig;
   const typing = el.querySelector<HTMLInputElement>('.spotify__input');
   // Don't wipe what the user is typing because a poll came in.
   if (typing && document.activeElement === typing && !connected) return;

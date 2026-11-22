@@ -3,6 +3,7 @@
 
 import type { Lyrics, Track } from '../bridge';
 import { createLyrics } from '../widget/lyrics';
+import { createStar } from '../widget/star';
 import type { WidgetContext, WidgetModule, WidgetState } from '../widget/types';
 import { createVisualizer } from '../widget/visualizer';
 import { createQueue, DEMO_QUEUE } from '../widget/queue';
@@ -53,14 +54,16 @@ export function mountPreview(host: HTMLElement, kind: string, options: () => Rec
 
   const state: WidgetState = { track: null, lyrics: null, locked: true, options: {}, lyricsOffsetMs: 0, calm: false, queue: null };
   const ctx: WidgetContext = { root, stage, state, preview: true };
-  const module: WidgetModule = kind === 'lyrics' ? createLyrics(ctx) : kind === 'queue' ? createQueue(ctx) : createVisualizer(ctx);
+  const module: WidgetModule =
+    kind === 'lyrics' ? createLyrics(ctx) : kind === 'queue' ? createQueue(ctx) : kind === 'star' ? createStar(ctx) : createVisualizer(ctx);
+  const wordy = kind === 'lyrics' || kind === 'star';
 
   let demo = false;
   function refresh(): void {
-    demo = kind === 'lyrics' ? needsDemoLyrics() : !store.track;
-    const track = demo && kind === 'lyrics' ? demoTrack() : store.track;
+    demo = wordy ? needsDemoLyrics() : !store.track;
+    const track = demo && wordy ? demoTrack() : store.track;
     state.track = track;
-    state.lyrics = demo && kind === 'lyrics' && track ? demoLyrics(track) : store.lyrics;
+    state.lyrics = demo && wordy && track ? demoLyrics(track) : store.lyrics;
     state.options = options();
     state.lyricsOffsetMs = store.prefs.lyricsOffsetMs;
     state.calm = store.prefs.calm;

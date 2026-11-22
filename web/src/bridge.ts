@@ -26,6 +26,8 @@ export interface Track {
   canPrevious: boolean;
   /** Bright colours from the cover; null without one. */
   palette: string[] | null;
+  /** The player accepts jumping within the song (Spotify does). */
+  canSeek?: boolean;
 }
 
 export interface LyricLine { t: number; text: string }
@@ -56,7 +58,7 @@ export type HostMessage =
   | { type: 'track'; track: Track | null }
   | { type: 'lyrics'; lyrics: Lyrics | null }
   | { type: 'queue'; queue: QueueState; redirectUri?: string }
-  | { type: 'widgets'; items: WidgetItem[]; hidden: boolean }
+  | { type: 'widgets'; items: WidgetItem[]; hidden: boolean; star?: { on: boolean; options: Record<string, unknown> } }
   | { type: 'widget-init'; id: string; locked: boolean; keepAspect: boolean; options: Record<string, unknown>; lyricsOffsetMs: number; fps: number; calm?: boolean }
   | { type: 'widget-options'; options: Record<string, unknown> }
   | { type: 'prefs'; fps: number; lyricsOffsetMs: number; sensitivity?: number; smoothing?: number; startWithWindows?: boolean; calm?: boolean }
@@ -70,11 +72,15 @@ export type WebMessage =
   | { type: 'widget-set'; id: string; enabled?: boolean; locked?: boolean }
   | { type: 'widget-reset'; id: string }
   | { type: 'widgets-hidden'; hidden: boolean }
+  | { type: 'star-mode'; on: boolean }
+  | { type: 'hit-areas'; rects: number[][] }
   | { type: 'drag-start' | 'open-dashboard' }
   | { type: 'resize-start'; keepAspect: boolean }
   | { type: 'options'; options: Record<string, unknown> }
   | { type: 'widget-options'; id: string; options: Record<string, unknown> }
   | { type: 'queue-play'; index: number }
+  | { type: 'queue-back'; index: number }
+  | { type: 'seek'; ms: number }
   | { type: 'spotify-connect'; clientId: string }
   | { type: 'spotify-disconnect' }
   | { type: 'open-url'; url: string }
@@ -101,27 +107,56 @@ interface WebViewBridge {
   releaseBuffer(buffer: ArrayBuffer): void;
 }
 
-const webview: WebViewBridge | undefined = (window as unknown as { chrome?: { webview?: WebViewBridge } })
-  .chrome?.webview;
+// WebView2 normally injects `chrome.webview` before any script runs, but a page that loads into a
+// renderer shared with other Sonora pages (re-enabling a widget) can run first and see nothing.
+// Reading it once at startup left such a page deaf and mute for good: an empty widget that ignored
+// every song and style change. So look it up lazily, and until it shows up, keep what the page
+// wants to send or listen to and hand it over the moment it does.
+type Pending = (w: WebViewBridge) => void;
+const pending: Pending[] = [];
+let bridge: WebViewBridge | undefined;
+let waited = 0;
+
+function lookup(): WebViewBridge | undefined {
+  bridge ??= (window as unknown as { chrome?: { webview?: WebViewBridge } }).chrome?.webview;
+  return bridge;
+}
+
+function whenReady(fn: Pending): void {
+  const w = lookup();
+  if (w) { fn(w); return; }
+  pending.push(fn);
+  if (pending.length === 1) poll();
+}
+
+function poll(): void {
+  const w = lookup();
+  if (w) {
+    for (const fn of pending.splice(0)) fn(w);
+    return;
+  }
+  // A normal browser (development) never gets a bridge; stop looking after a while.
+  if (++waited < 200) setTimeout(poll, 25);
+}
 
 /** True when running inside the app (false in a normal browser during development). */
-export const inHost = webview !== undefined;
+export const inHost = lookup() !== undefined || /\.sonora$/.test(location.hostname);
 
 export function send(message: WebMessage): void {
-  webview?.postMessage(message);
+  whenReady((w) => w.postMessage(message));
 }
 
 export function onMessage(handler: (message: HostMessage) => void): void {
-  webview?.addEventListener('message', (e) => handler(e.data as HostMessage));
+  whenReady((w) => w.addEventListener('message', (e) => handler(e.data as HostMessage)));
 }
 
 /** The host hands over the audio frame buffer after each `hello`. */
 export function onSharedBuffer(handler: (buffer: ArrayBuffer, meta: SharedBufferMeta) => void): void {
-  webview?.addEventListener('sharedbufferreceived', (e) => handler(e.getBuffer(), e.additionalData));
+  whenReady((w) => w.addEventListener('sharedbufferreceived', (e) => handler(e.getBuffer(), e.additionalData)));
 }
 
 export function releaseBuffer(buffer: ArrayBuffer): void {
-  webview?.releaseBuffer(buffer);
+  lookup()?.releaseBuffer(buffer);
 }
 
 /** Matches LyricsState.Key on the host. */

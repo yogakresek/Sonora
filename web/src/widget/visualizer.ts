@@ -6,7 +6,7 @@
 //   minimal – a glowing square cover with the title underneath
 
 import type { AudioFrame } from '../audio';
-import { send, type Track } from '../bridge';
+import { send, trackPosition, type Track } from '../bridge';
 import {
   VISUALIZER_DEFAULTS, fitCanvas, hexToRgb, resolvePalette, withDefaults,
   type VisualizerOptions, type WidgetContext, type WidgetModule, type WidgetState,
@@ -22,23 +22,89 @@ export function createVisualizer(ctx: WidgetContext): WidgetModule {
   ctx.stage.append(canvas);
   const g = canvas.getContext('2d')!;
 
-  // Hover controls (desktop only).
+  // The song's progress: a slim line that can stay on screen, and (desktop only) a panel on hover
+  // with a seek bar you can press and drag to any minute, plus previous / play / next.
+  const mini = document.createElement('div');
+  mini.className = 'vis__mini';
+  mini.innerHTML = '<span class="vis__time"></span><div class="vis__track"><i class="vis__fill"></i></div><span class="vis__time"></span>';
+  ctx.stage.append(mini);
+
   let controls: HTMLElement | null = null;
+  let seek: HTMLElement | null = null;
   if (!ctx.preview) {
     controls = document.createElement('div');
     controls.className = 'vis__controls';
     controls.dataset.nodrag = '';
     controls.innerHTML = `
-      <button type="button" data-cmd="previous" aria-label="Sebelumnya">${ICON_PREV}</button>
-      <button type="button" data-cmd="toggle" aria-label="Putar/jeda">${ICON_PLAY}</button>
-      <button type="button" data-cmd="next" aria-label="Berikutnya">${ICON_NEXT}</button>`;
+      <div class="vis__seek" data-slider role="slider" aria-label="Posisi lagu">
+        <span class="vis__time"></span>
+        <div class="vis__track" data-slider-track><i class="vis__fill"></i><b class="vis__knob"></b></div>
+        <span class="vis__time"></span>
+      </div>
+      <div class="vis__buttons">
+        <button type="button" data-cmd="previous" aria-label="Sebelumnya">${ICON_PREV}</button>
+        <button type="button" data-cmd="toggle" aria-label="Putar/jeda">${ICON_PLAY}</button>
+        <button type="button" data-cmd="next" aria-label="Berikutnya">${ICON_NEXT}</button>
+      </div>`;
     ctx.stage.append(controls);
     controls.addEventListener('click', (e) => {
       const cmd = (e.target as HTMLElement).closest('button')?.dataset.cmd;
       if (cmd === 'toggle' || cmd === 'next' || cmd === 'previous') send({ type: 'media', command: cmd });
     });
+    seek = controls.querySelector<HTMLElement>('.vis__seek');
+    seek!.addEventListener('slide', (e) => {
+      const { phase, fraction } = (e as CustomEvent<{ phase: string; fraction: number }>).detail;
+      if (!track || !track.canSeek || track.durationMs <= 0) return;
+      const ms = fraction * track.durationMs;
+      if (phase !== 'end') {
+        dragMs = ms;
+      } else {
+        dragMs = null;
+        // Show the new spot at once; the player confirms it within a moment.
+        held = { ms, at: Date.now(), key: `${track.title}\n${track.artist}` };
+        send({ type: 'seek', ms: Math.round(ms) });
+      }
+      drawProgress();
+    });
   }
   const btn = (cmd: string) => controls?.querySelector<HTMLButtonElement>(`[data-cmd="${cmd}"]`) ?? null;
+
+  /** While dragging: where the knob is. */
+  let dragMs: number | null = null;
+  /** Right after a seek: the chosen spot, until the player's own report has surely caught up. */
+  let held: { ms: number; at: number; key: string } | null = null;
+  let shownSecond = -1;
+
+  function positionNow(): number {
+    if (!track) return 0;
+    if (dragMs !== null) return dragMs;
+    if (held && held.key === `${track.title}\n${track.artist}` && Date.now() - held.at < 1500) {
+      return Math.min(track.durationMs, held.ms + (track.playing ? Date.now() - held.at : 0));
+    }
+    held = null;
+    return trackPosition(track);
+  }
+
+  function drawProgress(): void {
+    const dur = track?.durationMs ?? 0;
+    const pos = positionNow();
+    const p = dur > 0 ? Math.min(1, pos / dur) : 0;
+    for (const el of [mini, seek]) {
+      if (!el) continue;
+      el.style.setProperty('--p', p.toFixed(4));
+    }
+    // Text only changes once a second (or on every move while dragging).
+    const second = Math.floor(pos / 1000);
+    if (second !== shownSecond || dragMs !== null) {
+      shownSecond = second;
+      for (const el of [mini, seek]) {
+        if (!el) continue;
+        const [a, b] = el.querySelectorAll<HTMLElement>('.vis__time');
+        a.textContent = clock(pos);
+        b.textContent = clock(dur);
+      }
+    }
+  }
 
   let opts: VisualizerOptions = VISUALIZER_DEFAULTS;
   let track: Track | null = null;
@@ -462,6 +528,12 @@ export function createVisualizer(ctx: WidgetContext): WidgetModule {
         btn('toggle')!.disabled = !track?.canToggle;
         btn('toggle')!.innerHTML = track?.playing ? ICON_PAUSE : ICON_PLAY;
       }
+      const hasTime = !!track && track.durationMs > 0;
+      mini.hidden = !opts.progress || !hasTime;
+      seek?.classList.toggle('vis__seek--off', !hasTime);
+      seek?.setAttribute('aria-disabled', String(!hasTime || !track?.canSeek));
+      shownSecond = -1;
+      drawProgress();
     },
 
     frame(f: AudioFrame, dt: number): boolean {
@@ -478,9 +550,12 @@ export function createVisualizer(ctx: WidgetContext): WidgetModule {
       g.clearRect(0, 0, W, H);
 
       const withTitle = opts.showTitle || opts.style === 'minimal';
-      const textH = withTitle ? Math.min(W, H) * 0.2 : 0;
-      const S = Math.min(W, H - textH);
-      const cx = W / 2, cy = (H - textH) / 2;
+      // Keep the bottom strip free for the time line, so it never covers the title or the art.
+      const lineH = mini.hidden ? 0 : Math.min(W, H) * 0.085;
+      const avail = H - lineH;
+      const textH = withTitle ? Math.min(W, avail) * 0.2 : 0;
+      const S = Math.min(W, avail - textH);
+      const cx = W / 2, cy = (avail - textH) / 2;
 
       let moving: boolean;
       switch (opts.style) {
@@ -490,11 +565,17 @@ export function createVisualizer(ctx: WidgetContext): WidgetModule {
         case 'minimal': moving = minimal(cx, cy, S); break;
         default: moving = halo(f, cx, cy, S, dt, dpr);
       }
-      if (withTitle) title(W, H - textH, textH, Math.min(W, H), dpr);
+      if (withTitle) title(W, avail - textH, textH, Math.min(W, avail), dpr);
+      drawProgress();
 
       return moving || fade < 1 || pulse > 0.01;
     },
   };
+}
+
+function clock(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
 // Small line icons (24×24, stroke = currentColor).

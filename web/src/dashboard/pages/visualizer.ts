@@ -17,7 +17,9 @@ export function visualizerPage(container: HTMLElement): () => void {
         row('Cahaya', 'Pendar lembut di sekitar visualizer.', toggle(ctx.opts.glow, (v) => ctx.set({ glow: v })), icon.spark),
         row('Berdenyut mengikuti beat', 'Cover membesar sedikit setiap ketukan drum.', toggle(ctx.opts.beat, (v) => ctx.set({ beat: v })), icon.audio),
         row('Tampilkan judul lagu', 'Judul dan artis di bawah visualizer (selalu tampil pada gaya Minimal).',
-          toggle(ctx.opts.showTitle, (v) => ctx.set({ showTitle: v })), icon.lyrics)),
+          toggle(ctx.opts.showTitle, (v) => ctx.set({ showTitle: v })), icon.lyrics),
+        row('Tampilkan jalannya lagu', 'Garis waktu tipis di bawah visualizer. Arahkan kursor ke widget untuk menggeser lagu ke menit mana pun.',
+          toggle(ctx.opts.progress, (v) => ctx.set({ progress: v })), icon.clock)),
     ],
   });
 }

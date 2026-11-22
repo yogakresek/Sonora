@@ -14,6 +14,9 @@ internal interface IDesktopTarget
     void PointerLeave();
     void PointerDown(Point screen, int clicks);
     void PointerUp(Point screen);
+    /// <summary>True when a press at this point should go to the desktop instead (a layer that
+    /// only wants hover, apart from a few buttons on it).</summary>
+    bool PassThrough(Point screen);
 }
 
 /// <summary>
@@ -121,11 +124,16 @@ internal sealed class DesktopInput : IDisposable
             }
             if (target is null) return CallNextHookEx(_hook, code, wParam, lParam);
 
+            if (msg == WM_MOUSEMOVE)
+            {
+                if (Throttle()) _ui.Post(_ => target.PointerMove(pt), null);
+                return CallNextHookEx(_hook, code, wParam, lParam); // never swallow movement
+            }
+            // Hover-only layers (Star Mode) let presses through, except on their own buttons.
+            if (target.PassThrough(pt)) return CallNextHookEx(_hook, code, wParam, lParam);
+
             switch (msg)
             {
-                case WM_MOUSEMOVE:
-                    if (Throttle()) _ui.Post(_ => target.PointerMove(pt), null);
-                    break; // never swallow movement
                 case WM_LBUTTONDOWN:
                     _capture = target;
                     int clicks = CountClicks(pt);

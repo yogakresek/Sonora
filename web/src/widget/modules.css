@@ -7,18 +7,72 @@
 .vis__controls {
   position: absolute;
   left: 50%;
-  bottom: 7%;
+  bottom: 6%;
+  width: min(80%, 300px);
   transform: translateX(-50%) translateY(6px);
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 999px;
-  background: rgba(14, 14, 22, 0.72);
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 6px 10px 4px;
+  border-radius: 18px;
+  background: rgba(14, 14, 22, 0.74);
+  backdrop-filter: blur(10px);
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   opacity: 0;
   transition: opacity 0.18s, transform 0.18s;
 }
-.w--hover .vis__controls { opacity: 1; transform: translateX(-50%); }
+.w--hover .vis__controls, .w--sliding .vis__controls { opacity: 1; transform: translateX(-50%); }
+.vis__buttons { display: flex; justify-content: center; gap: 4px; }
+
+/* Time line: "1:05 ━━━━●──── 3:23". The seek bar is the whole row, so it is easy to grab. */
+.vis__seek, .vis__mini {
+  --p: 0;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.78);
+  font: 600 10.5px/1 "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.vis__seek { height: 24px; }
+.vis__track { position: relative; height: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.2); transition: height 0.12s; }
+.vis__fill {
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  background: #fff;
+  transform: scaleX(var(--p));
+  transform-origin: left center;
+}
+.vis__knob {
+  position: absolute; top: 50%; left: calc(var(--p) * 100%);
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.12s;
+}
+.vis__seek.is-hover .vis__track, .vis__seek.is-active .vis__track { height: 6px; }
+.vis__seek.is-hover .vis__knob, .vis__seek.is-active .vis__knob { transform: translate(-50%, -50%) scale(1); }
+.vis__seek--off { opacity: 0.4; }
+
+/* Always-on slim version under the visualizer; makes way for the panel on hover. */
+.vis__mini {
+  position: absolute;
+  left: 50%;
+  bottom: 3.5%;
+  width: min(62%, 260px);
+  transform: translateX(-50%);
+  font-size: 10px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
+  opacity: 0.85;
+  pointer-events: none;
+  transition: opacity 0.18s;
+}
+.vis__mini[hidden] { display: none; }
+.vis__mini .vis__track { height: 3px; background: rgba(255, 255, 255, 0.22); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); }
+.w--hover .vis__mini, .w--sliding .vis__mini { opacity: 0; }
 .vis__controls button {
   width: 36px; height: 36px;
   display: grid; place-items: center;
@@ -29,6 +83,129 @@
 .vis__controls button.is-hover { background: rgba(255, 255, 255, 0.12); }
 .vis__controls button.is-active { background: rgba(255, 255, 255, 0.22); }
 .vis__controls button:disabled { opacity: 0.35; }
+
+/* ---------------------------------------------------------------- Star Mode */
+
+.star__canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+/* Now playing, quietly in the bottom-left corner: the sky keeps the middle of the screen.
+   Sizes are in em; the module sets font-size from the screen size. */
+.star__card {
+  --accent: #a78bfa;
+  position: absolute;
+  left: 4.5%;
+  bottom: 7.5%;
+  max-width: 38%;
+  display: flex;
+  align-items: center;
+  gap: 1.1em;
+  color: #fff;
+  animation: star-card-in 1.2s ease both;
+}
+.star__card[hidden] { display: none; }
+@keyframes star-card-in { from { opacity: 0; translate: 0 0.6em; } }
+.star__cover {
+  width: 4.6em; height: 4.6em; flex: none;
+  border-radius: 0.85em; overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0.7em 2.2em rgba(0, 0, 0, 0.55), 0 0 2.6em color-mix(in srgb, var(--accent) 30%, transparent), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.star__cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.star__cover img[hidden] { display: none; }
+.star__meta { display: flex; flex-direction: column; min-width: 0; gap: 0.15em; }
+.star__title {
+  font: 650 1.15em/1.2 "Segoe UI Variable Display", "Segoe UI", sans-serif;
+  letter-spacing: 0.005em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.star__artist { font-size: 0.8em; color: rgba(255, 255, 255, 0.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.star__meta { width: 15em; }
+/* Time line: "1:05 ━━━━●──── 3:23", press and drag to seek. */
+.star__seek {
+  --p: 0;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0.6em;
+  height: 2.4em; margin-top: 0.7em;
+  font: 600 0.62em/1 "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.55);
+}
+.star__track { position: relative; height: 3px; border-radius: 3px; background: rgba(255, 255, 255, 0.16); transition: height 0.12s; }
+.star__fill { position: absolute; inset: 0; border-radius: inherit; background: rgba(255, 255, 255, 0.85); transform: scaleX(var(--p)); transform-origin: left center; }
+.star__knob {
+  position: absolute; top: 50%; left: calc(var(--p) * 100%);
+  width: 11px; height: 11px; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 10px var(--accent);
+  transform: translate(-50%, -50%) scale(0); transition: transform 0.12s;
+}
+.star__seek.is-hover .star__track, .star__seek.is-active .star__track { height: 5px; }
+.star__seek.is-hover .star__knob, .star__seek.is-active .star__knob { transform: translate(-50%, -50%) scale(1); }
+.star__seek[aria-disabled="true"] { opacity: 0.5; }
+/* Previous / play / next: quiet until pointed at. */
+.star__controls { display: flex; align-items: center; gap: 0.35em; margin-top: 0.2em; margin-left: -0.35em; }
+.star__controls button {
+  width: 1.9em; height: 1.9em; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: transparent; color: rgba(255, 255, 255, 0.72);
+  transition: background 0.12s, color 0.12s, transform 0.12s;
+}
+.star__controls button svg { width: 0.9em; height: 0.9em; }
+.star__controls .star__play { width: 2.2em; height: 2.2em; background: rgba(255, 255, 255, 0.92); color: #0b0b12; }
+.star__controls .star__play svg { width: 1em; height: 1em; }
+.star__controls button.is-hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+.star__controls .star__play.is-hover { background: #fff; transform: scale(1.06); }
+.star__controls button.is-active { transform: scale(0.92); }
+.star__controls button:disabled { opacity: 0.3; }
+.star__note { margin-top: 0.35em; font-size: 0.62em; color: rgba(255, 255, 255, 0.4); }
+.star__note:empty { display: none; }
+
+/* The way out: a glass bar at the top that shows while the mouse moves over the sky. */
+.star__bar {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 5px 5px 14px;
+  border-radius: 999px;
+  background: rgba(16, 18, 30, 0.72);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+  font: 600 13px/1 "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  opacity: 0;
+  transform: translate(-50%, -10px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.star__bar.is-shown { opacity: 1; transform: translate(-50%, 0); }
+.star__bar-label { display: inline-flex; align-items: center; gap: 7px; padding-right: 6px; color: rgba(255, 255, 255, 0.7); }
+.star__bar-label svg { color: #c4b5fd; }
+/* "Lirik − 0,0 dtk +": this song's lyric shift. */
+.star__sync {
+  display: inline-flex; align-items: center; gap: 2px;
+  height: 30px; padding: 0 3px 0 12px; margin-right: 2px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+.star__sync-label { color: rgba(255, 255, 255, 0.55); margin-right: 6px; font-weight: 600; }
+.star__sync button {
+  width: 26px; height: 26px; display: grid; place-items: center;
+  border: 0; border-radius: 50%; background: transparent; color: #fff;
+  font: 700 16px/1 "Segoe UI", sans-serif; transition: background 0.12s;
+}
+.star__sync button.is-hover { background: rgba(255, 255, 255, 0.14); }
+.star__sync button.is-active { background: rgba(255, 255, 255, 0.24); }
+.star__sync-value { min-width: 5.2em; text-align: center; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.75); }
+.star__sync-value.is-set { color: #c4b5fd; }
+.star__exit {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 30px; padding: 0 14px 0 11px;
+  border: 0; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff; font: inherit;
+  transition: background 0.15s;
+}
+.star__exit.is-hover { background: rgba(248, 113, 113, 0.85); }
+.star__exit.is-active { background: rgba(239, 68, 68, 1); }
+/* The sky fills the screen: no widget hover frame or resize grip. */
+.w--star .w__frame, .w--star .w__grip { display: none; }
 
 /* ---------------------------------------------------------------- lyrics: common */
 
@@ -221,6 +398,10 @@ button.q__row.is-active { background: rgba(255, 255, 255, 0.18); }
   animation-delay: var(--delay, 0ms);
 }
 .q--arc .q__note { padding-left: 0.4em; max-width: 16em; }
+/* Faded rows (far away, or already played) light up under the pointer so they read as clickable. */
+.q--arc button.q__row.is-hover { opacity: max(var(--o, 1), 0.95); }
+.q--arc button.q__row--past.is-hover .q__thumb { filter: none; }
+button.q__row.is-picked { background: color-mix(in srgb, var(--q-accent) 30%, transparent); }
 .q--arc .q__row--now { padding-top: 0.45em; padding-bottom: 0.45em; }
 .q--arc .q__row--now .q__thumb { width: 3em; height: 3em; }
 .q--arc .q__row--now b { font-size: 1.15em; }
@@ -276,3 +457,7 @@ button.q__row.is-active { background: rgba(255, 255, 255, 0.18); }
 /* Calm mode: words still arrive one by one, but simply fade in, straight. */
 .lyr--calm.lyr--kinetic .lyr__word.kin { transform: none; }
 .lyr--calm.lyr--kinetic .lyr__word--sung { animation: lyr-fade 0.6s ease both !important; }
+
+/* A redraw with the same songs (option change, pause, poll): no entrance animation. */
+.q--quiet .q__row, .q--quiet .q__note { animation: none !important; }
+

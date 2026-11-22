@@ -23,6 +23,11 @@ public sealed class WidgetManager : IDisposable
         new("queue", "Antrean", "Lagu berikutnya dari Spotify; klik salah satunya untuk langsung memutarnya.", 540, 380, false),
     ];
 
+    /// <summary>Star Mode's full-screen layer. Not in the catalog: it isn't a widget you place.</summary>
+    public static readonly WidgetInfo Star = new("star", "Star Mode", "Lirik membentuk rasi bintang di layar.", 0, 0, false);
+
+    private static WidgetInfo? Info(string id) => id == Star.Id ? Star : Catalog.FirstOrDefault(i => i.Id == id);
+
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     private readonly Services _services;
@@ -48,9 +53,28 @@ public sealed class WidgetManager : IDisposable
         _services.Audio.StatusChanged += OnAudioStatus;
         _explorer = new ExplorerWatcher(Rebuild);
         _input = new DesktopInput(services.Ui, () => _windows.Values);
+        // Resolution / scale / monitor changes: the Star Mode sky must keep covering the screen.
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplayChanged;
     }
 
+    private void OnDisplayChanged(object? sender, EventArgs e) => _services.Ui.Post(_ => Apply(), null);
+
     public bool Hidden => _services.Settings.Current.WidgetsHidden;
+
+    public bool StarMode => _services.Settings.Current.StarMode;
+
+    public object DescribeStar() => new { on = StarMode, options = SettingsFor(Star).Options };
+
+    /// <summary>Star Mode on: the widgets step aside (their settings untouched) and the sky takes the screen.</summary>
+    public void SetStarMode(bool on)
+    {
+        if (StarMode == on) return;
+        _services.Settings.Current.StarMode = on;
+        _services.Settings.Changed();
+        Log.Info($"Star Mode {(on ? "on" : "off")}");
+        Apply();
+        Changed?.Invoke();
+    }
 
     public IEnumerable<object> Describe() => Catalog.Select(info =>
     {
@@ -66,16 +90,23 @@ public sealed class WidgetManager : IDisposable
         if (_disposed) return;
         var settings = _services.Settings.Current;
 
+        bool star = settings.StarMode && !settings.WidgetsHidden && WebHosts.HasBuiltFrontend;
         foreach (var info in Catalog)
         {
             var s = SettingsFor(info);
-            bool want = s.Enabled && !settings.WidgetsHidden && WebHosts.HasBuiltFrontend;
+            bool want = s.Enabled && !settings.WidgetsHidden && !star && WebHosts.HasBuiltFrontend;
             bool have = _windows.TryGetValue(info.Id, out var window);
 
             if (want && !have) Create(info, s);
             else if (!want && have) Close(window!);
             else if (have) window!.SetLocked(s.Locked);
         }
+
+        // The sky covers the whole primary screen and never takes the mouse (desktop stays usable).
+        bool haveStar = _windows.TryGetValue(Star.Id, out var sky);
+        if (star && !haveStar) CreateStar();
+        else if (!star && haveStar) Close(sky!);
+        else if (star && haveStar && Screen.PrimaryScreen is { } screen && sky!.ScreenBounds != screen.Bounds) sky.MoveTo(screen.Bounds);
 
         _input.Update();
         if (_windows.ContainsKey("queue")) _queueLease ??= _services.Queue.Acquire();
@@ -97,6 +128,16 @@ public sealed class WidgetManager : IDisposable
         var window = new WidgetWindow(this, info.Id, bounds, s.Locked);
         _windows[info.Id] = window;
         window.FormClosed += (_, _) => { if (_windows.GetValueOrDefault(info.Id) == window) _windows.Remove(info.Id); };
+        window.Show();
+        _ = StartAsync(window);
+    }
+
+    private void CreateStar()
+    {
+        var bounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
+        var window = new WidgetWindow(this, Star.Id, bounds, locked: true);
+        _windows[Star.Id] = window;
+        window.FormClosed += (_, _) => { if (_windows.GetValueOrDefault(Star.Id) == window) _windows.Remove(Star.Id); };
         window.Show();
         _ = StartAsync(window);
     }
@@ -126,13 +167,13 @@ public sealed class WidgetManager : IDisposable
 
     internal async Task OnWidgetReadyAsync(WidgetWindow window)
     {
-        var s = SettingsFor(Catalog.First(i => i.Id == window.Id));
-        var info = Catalog.First(i => i.Id == window.Id);
+        var info = Info(window.Id)!;
+        var s = SettingsFor(info);
         window.Post(new
         {
             type = "widget-init",
             id = window.Id,
-            locked = s.Locked,
+            locked = info != Star && s.Locked, // the sky hears the pointer (for its exit button); the host keeps it in place
             keepAspect = info.KeepAspect,
             options = s.Options,
             lyricsOffsetMs = _services.Settings.Current.LyricsOffsetMs,
@@ -153,8 +194,13 @@ public sealed class WidgetManager : IDisposable
 
     internal Task QueuePlayAsync(int index) => _services.Queue.PlayAsync(index);
 
+    internal Task QueueBackAsync(int index) => _services.Queue.PlayPreviousAsync(index);
+
+    internal Task SeekAsync(double positionMs) => _services.Media.SeekAsync(positionMs);
+
     internal void SaveBounds(string id, Rectangle r)
     {
+        if (id == Star.Id) return; // always the full screen
         var s = SettingsFor(Catalog.First(i => i.Id == id));
         (s.X, s.Y, s.Width, s.Height) = (r.X, r.Y, r.Width, r.Height);
         _services.Settings.Changed();
@@ -162,14 +208,15 @@ public sealed class WidgetManager : IDisposable
 
     internal void SaveOptions(string id, JsonObject options)
     {
-        SettingsFor(Catalog.First(i => i.Id == id)).Options = options;
+        if (Info(id) is not { } info) return;
+        SettingsFor(info).Options = options;
         _services.Settings.Changed();
     }
 
     /// <summary>From the dashboard: saves a widget's look and sends it to the widget right away.</summary>
     public void SetOptions(string id, JsonObject options)
     {
-        if (Catalog.All(i => i.Id != id)) return;
+        if (Info(id) is null) return;
         SaveOptions(id, options);
         if (_windows.TryGetValue(id, out var w)) w.Post(new { type = "widget-options", options }, Json);
     }
@@ -271,6 +318,7 @@ public sealed class WidgetManager : IDisposable
     public void Dispose()
     {
         _disposed = true;
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
         _services.Audio.StatusChanged -= OnAudioStatus;
         _explorer.Dispose();
         _input.Dispose();

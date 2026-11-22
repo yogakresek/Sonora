@@ -7,6 +7,7 @@ import { onMessage, send } from '../bridge';
 import { createQueue } from './queue';
 import { createVisualizer } from './visualizer';
 import { createLyrics } from './lyrics';
+import { createStar } from './star';
 import type { WidgetContext, WidgetModule, WidgetState } from './types';
 
 const id = new URLSearchParams(location.search).get('id') ?? 'cover';
@@ -23,7 +24,8 @@ const state: WidgetState = { track: null, lyrics: null, locked: false, options: 
 let keepAspect = false;
 
 const ctx: WidgetContext = { root, stage, state };
-const widget: WidgetModule = id === 'lyrics' ? createLyrics(ctx) : id === 'queue' ? createQueue(ctx) : createVisualizer(ctx);
+const widget: WidgetModule =
+  id === 'lyrics' ? createLyrics(ctx) : id === 'queue' ? createQueue(ctx) : id === 'star' ? createStar(ctx) : createVisualizer(ctx);
 const audio = new AudioReader();
 
 // ------------------------------------------------------------------ host messages
@@ -78,10 +80,27 @@ onMessage((msg) => {
 let gesture: 'drag' | 'resize' | null = null;
 let pressed: HTMLElement | null = null;
 let hovered: HTMLElement | null = null;
+let sliding: HTMLElement | null = null;
 
 function elementAt(x: number, y: number): Element | null {
   const dpr = window.devicePixelRatio || 1;
   return document.elementFromPoint(x / dpr, y / dpr);
+}
+
+// Clickable: a button marked data-nodrag itself, or any button inside a data-nodrag area.
+// (Only the second form used to count, so the queue's song rows were dragged instead of clicked.)
+const CLICKABLE = 'button[data-nodrag]:not(:disabled), [data-nodrag] button:not(:disabled)';
+
+/**
+ * Sliders ([data-slider], e.g. the song's progress) get "slide" events while the button is held:
+ * detail = { phase: 'start' | 'move' | 'end', fraction: 0..1 along the bar's width }.
+ */
+function slide(el: HTMLElement, phase: 'start' | 'move' | 'end', x: number): void {
+  const dpr = window.devicePixelRatio || 1;
+  // Measure along the bar itself ([data-slider-track]), not the labels beside it.
+  const r = (el.querySelector('[data-slider-track]') ?? el).getBoundingClientRect();
+  const fraction = r.width > 0 ? Math.min(1, Math.max(0, (x / dpr - r.left) / r.width)) : 0;
+  el.dispatchEvent(new CustomEvent('slide', { detail: { phase, fraction } }));
 }
 
 function setHovered(el: HTMLElement | null): void {
@@ -92,21 +111,36 @@ function setHovered(el: HTMLElement | null): void {
 }
 
 function onPointer(kind: string, x: number, y: number, clicks: number): void {
+  widget.pointer?.(kind, x, y);
   if (state.locked) return;
+  if (sliding) {
+    // The press belongs to the slider until release, wherever the pointer goes.
+    if (kind === 'move') slide(sliding, 'move', x);
+    if (kind === 'up') {
+      slide(sliding, 'end', x);
+      sliding.classList.remove('is-active');
+      sliding = null;
+      root.classList.remove('w--sliding');
+    }
+    wake();
+    return;
+  }
   const target = kind === 'leave' ? null : elementAt(x, y);
-  const button = target?.closest<HTMLElement>('[data-nodrag] button:not(:disabled)') ?? null;
+  const button = target?.closest<HTMLElement>(CLICKABLE) ?? null;
+  const slider = button ? null : target?.closest<HTMLElement>('[data-slider]:not([aria-disabled="true"])') ?? null;
 
   switch (kind) {
     case 'enter':
     case 'move':
       root.classList.add('w--hover');
-      setHovered(button);
+      setHovered(button ?? slider);
       break;
     case 'leave':
       root.classList.remove('w--hover');
       setHovered(null);
       break;
     case 'down':
+      if (id === 'star' && !button && !slider) return; // the sky itself isn't dragged or double-clicked
       if (clicks >= 2 && !button) {
         send({ type: 'open-dashboard' });
         return;
@@ -114,6 +148,11 @@ function onPointer(kind: string, x: number, y: number, clicks: number): void {
       if (button) {
         pressed = button;
         button.classList.add('is-active');
+      } else if (slider) {
+        sliding = slider;
+        slider.classList.add('is-active');
+        root.classList.add('w--sliding');
+        slide(slider, 'start', x);
       } else if (target?.closest('.w__grip')) {
         gesture = 'resize';
         send({ type: 'resize-start', keepAspect });
@@ -169,4 +208,14 @@ requestAnimationFrame(loop);
 
 new ResizeObserver(() => wake()).observe(root);
 
-send({ type: 'hello' });
+// Say hello until the host answers with widget-init: a hello lost while the page and host were
+// still connecting would otherwise leave the widget empty until it is re-created.
+let initialised = false;
+let helloTries = 0;
+function hello(): void {
+  if (initialised) return;
+  send({ type: 'hello' });
+  if (++helloTries < 20) setTimeout(hello, 1000);
+}
+onMessage((msg) => { if (msg.type === 'widget-init') initialised = true; });
+hello();

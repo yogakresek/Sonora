@@ -240,8 +240,15 @@ public sealed partial class LyricsService : IDisposable
     {
         public string? TrackName { get; set; }
         public string? ArtistName { get; set; }
-        public double Duration { get; set; }
-        public bool Instrumental { get; set; }
+        // LRCLIB sometimes sends null here; one such entry used to fail the whole search.
+        [System.Text.Json.Serialization.JsonPropertyName("duration")]
+        public double? RawDuration { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public double Duration => RawDuration ?? 0;
+        [System.Text.Json.Serialization.JsonPropertyName("instrumental")]
+        public bool? RawInstrumental { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public bool Instrumental => RawInstrumental ?? false;
         public string? PlainLyrics { get; set; }
         public string? SyncedLyrics { get; set; }
     }

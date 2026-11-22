@@ -33,9 +33,16 @@ public sealed class WidgetWindow : Form, IDesktopTarget
     private string? _gesture;
     private bool _keepAspect;
 
+    // Star Mode's layer: always locked in place, but it hears the mouse so it can show its
+    // controls, and takes clicks only on the areas the page reports (its buttons).
+    private readonly bool _hoverOnly;
+    private volatile Rectangle[] _hot = [];
+
     public string Id { get; }
     public Rectangle ScreenBounds => _screen;
-    public bool AcceptsInput => !_locked && _ready && Visible;
+    public bool AcceptsInput => (!_locked || _hoverOnly) && _ready && Visible;
+
+    public bool PassThrough(Point screen) => _hoverOnly && !HitAreas.Hits(_hot, new Point(screen.X - _screen.X, screen.Y - _screen.Y));
     public CoreWebView2? Core => _web.CoreWebView2;
 
     public WidgetWindow(WidgetManager manager, string id, Rectangle screen, bool locked)
@@ -44,6 +51,7 @@ public sealed class WidgetWindow : Form, IDesktopTarget
         Id = id;
         _screen = screen;
         _locked = locked;
+        _hoverOnly = id == WidgetManager.Star.Id;
 
         FormBorderStyle = FormBorderStyle.None;
         // ShowInTaskbar stays true on purpose: false makes WinForms give the window a hidden owner,
@@ -97,8 +105,36 @@ public sealed class WidgetWindow : Form, IDesktopTarget
         core.Settings.IsZoomControlEnabled = false;
         core.Settings.AreBrowserAcceleratorKeysEnabled = dev;
         core.WebMessageReceived += OnWebMessage;
+        core.NavigationCompleted += (_, _) => WatchForHello();
         WebHosts.Map(core);
         core.Navigate(WebHosts.PageUrl("widget.html", $"id={Uri.EscapeDataString(Id)}"));
+    }
+
+    // A loaded page that never says hello can't hear the host either, and would sit on the
+    // desktop empty. Reload it a few times; it normally answers within a fraction of a second.
+    private System.Windows.Forms.Timer? _watchdog;
+    private int _reloads;
+
+    private void WatchForHello()
+    {
+        if (_ready || IsDisposed) return;
+        _watchdog?.Dispose();
+        _watchdog = new System.Windows.Forms.Timer { Interval = 5000 };
+        _watchdog.Tick += (_, _) =>
+        {
+            _watchdog?.Stop();
+            if (_ready || IsDisposed || _web.CoreWebView2 is not { } core) return;
+            if (_reloads++ >= 3) { Log.Info($"Widget '{Id}' never said hello; giving up"); return; }
+            Log.Info($"Widget '{Id}' silent after loading; reloading (try {_reloads})");
+            core.Reload();
+        };
+        _watchdog.Start();
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _watchdog?.Dispose();
+        base.Dispose(disposing);
     }
 
     public void SetLocked(bool locked)
@@ -191,6 +227,20 @@ public sealed class WidgetWindow : Form, IDesktopTarget
                     break;
                 case "queue-play":
                     if (msg?["index"] is JsonValue idx) await _manager.QueuePlayAsync((int)idx);
+                    break;
+                case "queue-back":
+                    if (msg?["index"] is JsonValue back) await _manager.QueueBackAsync((int)back);
+                    break;
+                case "hit-areas":
+                    // [[x, y, w, h], ...] in physical pixels relative to the window.
+                    _hot = HitAreas.Parse(msg?["rects"]);
+                    break;
+                case "star-mode":
+                    // Turning it off closes this very window: do that after this handler returns.
+                    if (_hoverOnly && msg?["on"] is JsonValue on && !(bool)on) BeginInvoke(() => _manager.SetStarMode(false));
+                    break;
+                case "seek":
+                    if (msg?["ms"] is JsonValue ms) await _manager.SeekAsync((double)ms);
                     break;
                 case "options":
                     if (msg?["options"] is JsonObject options) _manager.SaveOptions(Id, options);

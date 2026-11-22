@@ -170,6 +170,34 @@ public sealed class QueueService : IDisposable
         _soon.Start();
     }
 
+    /// <summary>
+    /// Goes back to the song at <paramref name="index"/> in the history (0 = the one just before).
+    /// Presses "previous" through the media controls; Spotify's first press only restarts the song
+    /// once it has played a few seconds, so that press is added.
+    /// </summary>
+    public async Task PlayPreviousAsync(int index)
+    {
+        if (_skipping || index < 0 || index >= _history.Count) return;
+        _skipping = true;
+        try
+        {
+            var track = _media.Current;
+            double pos = track is null ? 0 : track.PositionMs + (track.Playing ? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - track.UpdatedAt : 0);
+            int presses = index + 1 + (pos > 3000 ? 1 : 0);
+            for (int i = 0; i < presses; i++)
+            {
+                await _media.CommandAsync("previous");
+                await Task.Delay(i == presses - 1 ? 200 : 450);
+            }
+        }
+        finally
+        {
+            _skipping = false;
+        }
+        _soon.Stop();
+        _soon.Start();
+    }
+
     private static QueueItem? Map(JsonNode? node)
     {
         if (node is null) return null;

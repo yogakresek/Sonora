@@ -28,16 +28,20 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
   let track: Track | null = null;
   let calm = false;
   let key = '';
+  let songsKey = '';
   let bar: HTMLElement | null = null;
   let ring: SVGCircleElement | null = null;
   let disc: HTMLElement | null = null;
   let glow = 0;
 
   root.addEventListener('click', (e) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>('[data-index], [data-now]');
-    if (!el) return;
+    const el = (e.target as HTMLElement).closest<HTMLElement>('[data-index], [data-back], [data-now]');
+    // In the dashboard, the big preview plays songs too; the small style tiles only pick a style.
+    if (!el || (ctx.preview && el.closest('.tile'))) return;
     if (el.dataset.now !== undefined) send({ type: 'media', command: 'toggle' });
+    else if (el.dataset.back !== undefined) send({ type: 'queue-back', index: Number(el.dataset.back) });
     else send({ type: 'queue-play', index: Number(el.dataset.index) });
+    el.classList.add('is-picked'); // brief feedback while the player catches up
   });
 
   new ResizeObserver(() => {
@@ -77,7 +81,7 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
 
     if (opts.style === 'arc') {
       // Order on the wheel: oldest at the top, now in the middle, next below.
-      const past = history.slice().reverse().map((it) => row(it, 'q__row--past', ''));
+      const past = history.map((it, i) => row(it, 'q__row--past', `data-back="${i}"`)).reverse();
       root.innerHTML = `
         <div class="q__disc">
           <div class="q__art">${track?.cover ? `<img src="${esc(track.cover)}" alt="">` : '<span>♪</span>'}</div>
@@ -89,7 +93,7 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
       bar = null;
       layoutArc();
     } else {
-      const past = history.map((it) => row(it, 'q__row--past', ''));
+      const past = history.map((it, i) => row(it, 'q__row--past', `data-back="${i}"`));
       root.innerHTML = `
         <div class="q__card">
           ${now}
@@ -169,7 +173,13 @@ export function createQueue(ctx: WidgetContext): WidgetModule {
         q?.items.slice(0, opts.count).map((i) => i.title + i.artist + i.cover), q?.history.slice(0, 3).map((i) => i.title)]);
       if (next !== key) {
         key = next;
+        // Rows only animate in when the songs themselves change. A changed option, pausing, or a
+        // queue poll that returned the same songs redraws in place, so nothing jumps or slides.
+        const songs = JSON.stringify([track?.title, track?.artist, q?.status, q?.items.map((i) => i.title + i.artist), q?.history.slice(0, 3).map((i) => i.title)]);
+        const quiet = songs === songsKey;
+        songsKey = songs;
         render(state);
+        root.classList.toggle('q--quiet', quiet);
       }
     },
 

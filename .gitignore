@@ -5,3 +5,5 @@ obj/
 node_modules/
 web/dist/
 artifacts/
+.claude/
+history.cmd

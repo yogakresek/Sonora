@@ -18,4 +18,5 @@ public sealed record TrackState(
     bool CanToggle,
     bool CanNext,
     bool CanPrevious,
-    IReadOnlyList<string>? Palette);
+    IReadOnlyList<string>? Palette,
+    bool CanSeek = false);

@@ -25,9 +25,15 @@ public sealed class TrayApp : ApplicationContext
         menu.Items.Add("Buka dashboard", null, (_, _) => ShowDashboard());
         _hideItem = new ToolStripMenuItem("Sembunyikan widget", null, (_, _) => _services.Widgets.SetHidden(!_services.Widgets.Hidden));
         menu.Items.Add(_hideItem);
+        var starItem = new ToolStripMenuItem("Star Mode", null, (_, _) => _services.Widgets.SetStarMode(!_services.Widgets.StarMode));
+        menu.Items.Add(starItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Keluar", null, (_, _) => Quit());
-        menu.Opening += (_, _) => _hideItem.Text = _services.Widgets.Hidden ? "Tampilkan widget" : "Sembunyikan widget";
+        menu.Opening += (_, _) =>
+        {
+            _hideItem.Text = _services.Widgets.Hidden ? "Tampilkan widget" : "Sembunyikan widget";
+            starItem.Checked = _services.Widgets.StarMode;
+        };
 
         _tray = new NotifyIcon
         {

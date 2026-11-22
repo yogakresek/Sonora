@@ -6,7 +6,14 @@ Rancangan lengkapnya ada di [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ### ⬇ [Unduh Sonora untuk Windows](https://github.com/yogakresek/Sonora/releases/latest/download/Sonora-win-Setup.exe)
 Gratis, tanpa akun. Semua versi tersedia di halaman [Releases](https://github.com/yogakresek/Sonora/releases).
 
-**Status:** 0.4.0 — installer + uninstall sekali klik, widget Antrean (Spotify), gaya lirik Kinetik, Mode santai, dashboard bergaya Windows 11, 5 gaya Visualizer, 5 gaya Lirik. Arah desain ada di [docs/DESIGN.md](docs/DESIGN.md).
+**Status kode:** 0.5.6. Isinya:
+- **Star Mode:** lirik membentuk rasi bintang di layar penuh, dengan langit dari warna album tiap lagu. Ada kartu lagu interaktif, dan waktu lirik bisa digeser per lagu.
+- **Visualizer:** garis waktu lagu yang bisa digeser ke menit mana pun, tanpa perlu Premium.
+- **Antrean Spotify:** lagu berikutnya dan sebelumnya bisa diklik.
+- **Lirik:** 5 gaya (termasuk Kinetik yang menunggu suara penyanyi), menyesuaikan ukuran supaya muat, dan sinkron dengan lagu.
+- **Lainnya:** 5 gaya Visualizer, Mode santai, dashboard bergaya Windows 11, installer, dan uninstall sekali klik.
+
+Installer di tautan unduhan adalah rilis terbaru di halaman Releases. Arah desain ada di [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Kebutuhan
 - Windows 10 19041+ / Windows 11
@@ -54,9 +61,9 @@ dotnet test
 
 ## Struktur
 ```
-host/Sonora.Host/   proses inti .NET (tray, jendela, nanti audio/media/desktop)
-web/                frontend TypeScript + Vite (dashboard, nanti widget)
-tests/              unit test (analyzer audio)
+host/Sonora.Host/   proses inti .NET: tray, audio (WASAPI), media (Windows), lirik, Spotify, widget desktop
+web/                frontend TypeScript + Vite: dashboard dan widget (visualizer, lirik, antrean, Star Mode)
+tests/              unit test: analyzer audio, jam pemutaran, area klik
 docs/               rancangan
 ```
 

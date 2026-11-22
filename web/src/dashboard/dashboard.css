@@ -136,8 +136,9 @@ code { font: 12px 'Cascadia Code', Consolas, monospace; color: #c4b5fd; }
 
 /* ---------------------------------------------------------------- toggle (Fluent) */
 
-.toggle { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
-.toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.toggle { position: relative; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+/* The real checkbox sits invisibly over the switch, so focusing it never scrolls the page elsewhere. */
+.toggle input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
 .toggle__label { color: var(--text-2); font-size: 13px; min-width: 32px; text-align: right; }
 .toggle__track {
   position: relative; width: 40px; height: 20px; border-radius: 999px;
@@ -382,6 +383,26 @@ code { font: 12px 'Cascadia Code', Consolas, monospace; color: #c4b5fd; }
 .spotify__status-text span { color: var(--text-2); font-size: 12.5px; }
 .btn:disabled { opacity: 0.55; cursor: default; }
 .page--queue .showcase__stage { height: 360px; }
+.star-note {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 12px; padding: 12px 12px 12px 16px;
+  border-radius: var(--r-md);
+  background: linear-gradient(90deg, rgba(139, 92, 246, 0.16), rgba(139, 92, 246, 0.04));
+  border: 1px solid rgba(167, 139, 250, 0.3);
+}
+.star-note[hidden] { display: none; }
+.star-note__icon { color: #c4b5fd; display: grid; }
+.star-note__icon svg { width: 22px; height: 22px; }
+.star-note__text { display: flex; flex-direction: column; gap: 2px; flex: 1; font-size: 13px; }
+.star-note__text span { color: var(--text-2); font-size: 12.5px; }
+/* Star Mode previews the whole screen, so keep the screen's shape over a sample wallpaper. */
+.star-stage {
+  height: auto !important; aspect-ratio: 16 / 9; position: relative; overflow: hidden;
+  background:
+    radial-gradient(90% 70% at 20% 10%, #5b6b9a, transparent 60%),
+    radial-gradient(80% 80% at 90% 100%, #c08457, transparent 60%),
+    linear-gradient(160deg, #39405e, #7a6a73 60%, #2c2a35);
+}
 .page--queue .tile__stage { height: 130px; }
 .btn--danger { background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.35); color: #fca5a5; }
 .btn--danger:hover { background: rgba(248, 113, 113, 0.22); }

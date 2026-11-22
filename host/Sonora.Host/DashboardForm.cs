@@ -178,6 +178,10 @@ public sealed class DashboardForm : Form
                         _services.Widgets.SetOptions(id, (JsonObject)options.DeepClone());
                     break;
 
+                case "star-mode":
+                    _services.Widgets.SetStarMode((bool?)root["on"] ?? false);
+                    break;
+
                 case "widgets-hidden":
                     _services.Widgets.SetHidden((bool?)root["hidden"] ?? false);
                     break;
@@ -206,6 +210,14 @@ public sealed class DashboardForm : Form
 
                 case "queue-play":
                     if (root["index"] is JsonValue qi) await _services.Queue.PlayAsync((int)qi);
+                    break;
+
+                case "queue-back":
+                    if (root["index"] is JsonValue qb) await _services.Queue.PlayPreviousAsync((int)qb);
+                    break;
+
+                case "seek":
+                    if (root["ms"] is JsonValue seekMs) await _services.Media.SeekAsync((double)seekMs);
                     break;
 
                 case "open-url":
@@ -285,7 +297,7 @@ public sealed class DashboardForm : Form
     private void OnQueue(QueueState queue) => Post(new { type = "queue", queue, redirectUri = SpotifyClient.RedirectUri });
 
     private void OnWidgets() =>
-        Post(new { type = "widgets", items = _services.Widgets.Describe(), hidden = _services.Widgets.Hidden });
+        Post(new { type = "widgets", items = _services.Widgets.Describe(), hidden = _services.Widgets.Hidden, star = _services.Widgets.DescribeStar() });
 
     private void Post(object message)
     {

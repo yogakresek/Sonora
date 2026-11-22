@@ -34,6 +34,7 @@ public sealed class DashboardForm : Form
 
         _services.Audio.StatusChanged += OnAudioStatus;
         _services.Media.Changed += OnTrack;
+        _services.Widgets.Changed += OnWidgets;
     }
 
     // Closing the dashboard really closes it (the app stays in the tray). With no web view left,
@@ -45,6 +46,7 @@ public sealed class DashboardForm : Form
         {
             _services.Audio.StatusChanged -= OnAudioStatus;
             _services.Media.Changed -= OnTrack;
+            _services.Widgets.Changed -= OnWidgets;
             _audioLease?.Dispose();
             _audioLease = null;
         }
@@ -73,18 +75,11 @@ public sealed class DashboardForm : Form
             core.Settings.AreDefaultContextMenusEnabled = dev;
 
             core.WebMessageReceived += OnWebMessage;
-            core.SetVirtualHostNameToFolderMapping(MediaService.CoverHost, AppInfo.CacheDir,
-                CoreWebView2HostResourceAccessKind.Allow);
+            WebHosts.Map(core);
 
-            if (AppInfo.DevUrl is { } url)
+            if (WebHosts.HasBuiltFrontend)
             {
-                core.Navigate(url);
-            }
-            else if (File.Exists(Path.Combine(AppInfo.WebDir, "index.html")))
-            {
-                core.SetVirtualHostNameToFolderMapping(AppInfo.WebHost, AppInfo.WebDir,
-                    CoreWebView2HostResourceAccessKind.DenyCors);
-                core.Navigate($"https://{AppInfo.WebHost}/index.html");
+                core.Navigate(WebHosts.PageUrl("index.html"));
             }
             else
             {
@@ -127,7 +122,24 @@ public sealed class DashboardForm : Form
                     });
                     Post(new { type = "audio-status", status = _services.Audio.Status });
                     Post(new { type = "track", track = _services.Media.Current });
+                    Post(new { type = "widgets", items = _services.Widgets.Describe(), hidden = _services.Widgets.Hidden });
                     (await _services.GetAudioBridgeAsync()).Attach(_web.CoreWebView2);
+                    break;
+
+                case "widget-set":
+                {
+                    string id = root.GetProperty("id").GetString() ?? "";
+                    if (root.TryGetProperty("enabled", out var en)) _services.Widgets.SetEnabled(id, en.GetBoolean());
+                    if (root.TryGetProperty("locked", out var lk)) _services.Widgets.SetLocked(id, lk.GetBoolean());
+                    break;
+                }
+
+                case "widget-reset":
+                    _services.Widgets.ResetPosition(root.GetProperty("id").GetString() ?? "");
+                    break;
+
+                case "widgets-hidden":
+                    _services.Widgets.SetHidden(root.GetProperty("hidden").GetBoolean());
                     break;
 
                 case "media":
@@ -153,6 +165,8 @@ public sealed class DashboardForm : Form
     }
 
     private void OnTrack(TrackState? track) => Post(new { type = "track", track });
+
+    private void OnWidgets() => Post(new { type = "widgets", items = _services.Widgets.Describe(), hidden = _services.Widgets.Hidden });
 
     private void Post(object message)
     {

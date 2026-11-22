@@ -24,17 +24,42 @@ export interface Track {
   canToggle: boolean;
   canNext: boolean;
   canPrevious: boolean;
+  /** Bright colours from the cover; null without one. */
+  palette: string[] | null;
 }
+
+export interface LyricLine { t: number; text: string }
+
+export interface Lyrics {
+  /** title + '\n' + artist of the track they belong to. */
+  key: string;
+  status: 'loading' | 'synced' | 'plain' | 'none' | 'error';
+  lines: LyricLine[];
+  plain: string | null;
+}
+
+export interface WidgetItem { id: string; name: string; description: string; enabled: boolean; locked: boolean }
 
 export type HostMessage =
   | { type: 'hello'; app: string; version: string; dataDir: string; runtime: string; webview: string }
   | { type: 'audio-status'; status: AudioStatus }
-  | { type: 'track'; track: Track | null };
+  | { type: 'track'; track: Track | null }
+  | { type: 'lyrics'; lyrics: Lyrics | null }
+  | { type: 'widgets'; items: WidgetItem[]; hidden: boolean }
+  | { type: 'widget-init'; id: string; locked: boolean; keepAspect: boolean; options: Record<string, unknown>; lyricsOffsetMs: number }
+  | { type: 'widget-state'; locked: boolean }
+  | { type: 'pointer'; kind: 'enter' | 'move' | 'leave' | 'down' | 'up'; x: number; y: number; clicks: number };
 
 export type WebMessage =
   | { type: 'hello' }
   | { type: 'open-data-dir' }
-  | { type: 'media'; command: 'toggle' | 'next' | 'previous' };
+  | { type: 'media'; command: 'toggle' | 'next' | 'previous' }
+  | { type: 'widget-set'; id: string; enabled?: boolean; locked?: boolean }
+  | { type: 'widget-reset'; id: string }
+  | { type: 'widgets-hidden'; hidden: boolean }
+  | { type: 'drag-start' | 'open-dashboard' }
+  | { type: 'resize-start'; keepAspect: boolean }
+  | { type: 'options'; options: Record<string, unknown> };
 
 export interface SharedBufferMeta {
   layout: number;
@@ -77,6 +102,11 @@ export function onSharedBuffer(handler: (buffer: ArrayBuffer, meta: SharedBuffer
 
 export function releaseBuffer(buffer: ArrayBuffer): void {
   webview?.releaseBuffer(buffer);
+}
+
+/** Matches LyricsState.Key on the host. */
+export function trackKey(t: Track): string {
+  return `${t.title}\n${t.artist}`;
 }
 
 /** Where the track is now, extrapolated from the last report. */

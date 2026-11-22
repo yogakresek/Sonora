@@ -54,14 +54,21 @@ Target performa: < 120 MB RAM total dengan 3 widget aktif, < 3% CPU, 0 fps saat 
 ### Tiga layer jendela (pembeda terbesar)
 - **L0 Wallpaper:** satu jendela per monitor, di-`SetParent` ke WorkerW di belakang ikon desktop. Hanya satu
   "wallpaper hidup" aktif dalam satu waktu. Tidak menerima input.
-- **L1 Widget:** satu jendela transparan per monitor yang menampung *semua* widget kotak dalam satu
-  WebView2 dan satu konteks WebGL. Host memantau posisi kursor ±30 Hz:
-  - kursor di atas widget yang tidak dikunci → jendela menerima klik/drag
-  - di luar itu → `WS_EX_TRANSPARENT`, sehingga klik tembus ke ikon desktop
-
-  Jendela tidak muncul di Alt-Tab dan tetap ada setelah Win+D. Hasilnya jauh lebih hemat daripada
-  satu jendela per widget. Mode cadangan "satu jendela per widget" disediakan untuk kasus khusus.
-- **L2 Overlay:** jendela topmost, selalu klik-tembus, tidak menerima fokus. Otomatis mundur saat ada game
+- **L1 Widget:** ✅ *diputuskan setelah spike M2* — **satu jendela kecil per widget**, seukuran widget.
+  - Jendelanya `WS_EX_NOREDIRECTIONBITMAP`, sehingga transparan per-piksel tanpa latar hitam. Ia tetap ber-style popup,
+    tapi induknya dipindah lewat `SetParent` ke jendela pemilik ikon desktop (Progman di 24H2+, WorkerW di versi lama),
+    di atas lapisan ikon.
+  - Efeknya: widget selalu di belakang semua aplikasi, tidak muncul di Alt-Tab maupun taskbar, tetap ada setelah
+    Win+D, dan tetap bisa menerima klik.
+  - Rancangan awal "satu jendela selebar monitor" dibatalkan. Hasil spike: area jendela anak Progman menyembunyikan
+    ikon desktop di bawahnya, jadi jendela selebar layar akan menyembunyikan semua ikon.
+  - Supaya banyak widget tetap hemat, semua halaman berbagi satu renderer (`--process-per-site`).
+  - Widget yang dikunci memakai `WS_EX_TRANSPARENT|WS_EX_LAYERED` (klik tembus). Ini sudah diuji dan tetap transparan.
+  - Saat Explorer restart, widget dibangun ulang begitu pesan `TaskbarCreated` diterima.
+  - Gerak dan resize: halaman hanya memberi sinyal mulai, tiap frame, dan selesai. Host membaca posisi kursor asli,
+    sehingga presisi di semua DPI dan monitor.
+  - Render dibatasi 60 fps (data audio juga 60 Hz) dan turun ke sekitar 12 fps saat diam. Terukur dengan 2 widget dan
+    musik berjalan: total sekitar 1,7% CPU dan 333 MB.- **L2 Overlay:** jendela topmost, selalu klik-tembus, tidak menerima fokus. Otomatis mundur saat ada game
   atau video fullscreen.
 
 ---

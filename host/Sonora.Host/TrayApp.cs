@@ -1,13 +1,14 @@
 namespace Sonora;
 
-/// <summary>The app's lifetime: lives in the tray, owns the dashboard window.
-/// Closing the dashboard only hides it; "Keluar" in the tray ends the process.</summary>
+/// <summary>The app's lifetime: lives in the tray, owns the services, the widgets and the dashboard.
+/// Closing the dashboard only closes that window; "Keluar" in the tray ends the process.</summary>
 public sealed class TrayApp : ApplicationContext
 {
     private readonly NotifyIcon _tray;
     private readonly Icon _icon;
     private readonly IDisposable _showListener;
     private readonly Services _services;
+    private readonly ToolStripMenuItem _hideItem;
     private DashboardForm? _dashboard;
 
     public TrayApp()
@@ -22,8 +23,11 @@ public sealed class TrayApp : ApplicationContext
 
         var menu = new ContextMenuStrip();
         menu.Items.Add("Buka dashboard", null, (_, _) => ShowDashboard());
+        _hideItem = new ToolStripMenuItem("Sembunyikan widget", null, (_, _) => _services.Widgets.SetHidden(!_services.Widgets.Hidden));
+        menu.Items.Add(_hideItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Keluar", null, (_, _) => Quit());
+        menu.Opening += (_, _) => _hideItem.Text = _services.Widgets.Hidden ? "Tampilkan widget" : "Sembunyikan widget";
 
         _tray = new NotifyIcon
         {
@@ -38,9 +42,16 @@ public sealed class TrayApp : ApplicationContext
         };
 
         _showListener = SingleInstance.Listen(ui, ShowDashboard);
+        _services.Widgets.DashboardRequested += ShowDashboard;
+        _services.Widgets.Apply();
 
-        // First run of M0: open the dashboard so there is something to see.
-        ShowDashboard();
+        // First run: open the dashboard so there is something to read.
+        if (!_services.Settings.Current.FirstRunDone)
+        {
+            _services.Settings.Current.FirstRunDone = true;
+            _services.Settings.Changed();
+            ShowDashboard();
+        }
     }
 
     private void ShowDashboard()

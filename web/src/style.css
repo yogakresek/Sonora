@@ -116,3 +116,28 @@ button:disabled { opacity: 0.45; cursor: default; }
 
 details.card summary { cursor: pointer; font-weight: 600; }
 details.card[open] summary { margin-bottom: 12px; }
+
+/* ---------------------------------------------------------------- M2 widgets */
+
+.widgets { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.widget-row {
+  display: flex; align-items: center; gap: 14px;
+  background: #12121b; border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+}
+.widget-row__text { flex: 1; min-width: 0; }
+.widget-row__name { font-weight: 600; }
+
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--muted); white-space: nowrap; }
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+.switch span {
+  width: 34px; height: 20px; border-radius: 999px; background: #2a2a3c; position: relative; transition: background 0.2s;
+}
+.switch span::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%;
+  background: #cfcfe0; transition: transform 0.2s, background 0.2s;
+}
+.switch input:checked + span { background: linear-gradient(90deg, var(--accent-a), #4f46e5); }
+.switch input:checked + span::after { transform: translateX(14px); background: #fff; }
+.switch input:disabled + span { opacity: 0.4; }
+.switch input:focus-visible + span { outline: 2px solid var(--accent-b); outline-offset: 2px; }
+.switch--inline { font-size: 12.5px; }

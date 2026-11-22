@@ -1,6 +1,6 @@
 import './style.css';
 import { AudioReader, type AudioFrame } from './audio';
-import { inHost, onMessage, send, trackPosition, type AudioStatus, type Track } from './bridge';
+import { inHost, onMessage, send, trackPosition, type AudioStatus, type Track, type WidgetItem } from './bridge';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 
@@ -10,9 +10,18 @@ app.innerHTML = `
       <div class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       <div>
         <h1>Sonora</h1>
-        <p class="muted">Widget musik untuk desktop — tahap M1 (panel debug)</p>
+        <p class="muted">Widget musik untuk desktop — tahap M2</p>
       </div>
     </header>
+
+    <section class="card">
+      <div class="row">
+        <h2>Widget di desktop</h2>
+        <label class="switch switch--inline"><input type="checkbox" id="widgetsHidden"><span></span>Sembunyikan semua</label>
+      </div>
+      <p class="muted small">Geser widget langsung di desktop. Tarik sudut kanan bawah untuk mengubah ukuran. Klik dua kali widget untuk membuka jendela ini.</p>
+      <div class="widgets" id="widgetList"></div>
+    </section>
 
     <section class="card np" id="np">
       <div class="np__cover" id="npCover"><span>♪</span></div>
@@ -91,6 +100,9 @@ onMessage((msg) => {
       track = msg.track;
       showTrack(track);
       break;
+    case 'widgets':
+      showWidgets(msg.items, msg.hidden);
+      break;
   }
 });
 
@@ -98,6 +110,39 @@ $('openData').addEventListener('click', () => send({ type: 'open-data-dir' }));
 $('btnPrev').addEventListener('click', () => send({ type: 'media', command: 'previous' }));
 $('btnToggle').addEventListener('click', () => send({ type: 'media', command: 'toggle' }));
 $('btnNext').addEventListener('click', () => send({ type: 'media', command: 'next' }));
+
+function showWidgets(items: WidgetItem[], hidden: boolean): void {
+  $<HTMLInputElement>('widgetsHidden').checked = hidden;
+  $('widgetList').innerHTML = items.map((w) => `
+    <div class="widget-row" data-id="${w.id}">
+      <div class="widget-row__text">
+        <div class="widget-row__name">${w.name}</div>
+        <div class="muted small">${w.description}</div>
+      </div>
+      <label class="switch" title="Kunci posisi: widget tidak bisa digeser dan klik tembus ke desktop">
+        <input type="checkbox" data-act="locked" ${w.locked ? 'checked' : ''} ${w.enabled ? '' : 'disabled'}><span></span>Kunci
+      </label>
+      <button type="button" data-act="reset" ${w.enabled ? '' : 'disabled'}>Reset posisi</button>
+      <label class="switch">
+        <input type="checkbox" data-act="enabled" ${w.enabled ? 'checked' : ''}><span></span>Tampilkan
+      </label>
+    </div>`).join('');
+}
+
+$('widgetList').addEventListener('change', (e) => {
+  const input = e.target as HTMLInputElement;
+  const id = input.closest<HTMLElement>('.widget-row')?.dataset.id;
+  if (!id) return;
+  if (input.dataset.act === 'enabled') send({ type: 'widget-set', id, enabled: input.checked });
+  if (input.dataset.act === 'locked') send({ type: 'widget-set', id, locked: input.checked });
+});
+$('widgetList').addEventListener('click', (e) => {
+  const button = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-act="reset"]');
+  const id = button?.closest<HTMLElement>('.widget-row')?.dataset.id;
+  if (id) send({ type: 'widget-reset', id });
+});
+$('widgetsHidden').addEventListener('change', (e) =>
+  send({ type: 'widgets-hidden', hidden: (e.target as HTMLInputElement).checked }));
 
 function showAudioStatus(s: AudioStatus): void {
   const labels: Record<AudioStatus['state'], string> = {

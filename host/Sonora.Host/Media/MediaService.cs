@@ -27,6 +27,7 @@ public sealed class MediaService : IDisposable
     private string? _currentAppId;
     private string? _trackKey;
     private string? _cover;
+    private IReadOnlyList<string>? _palette;
     private int _coverAttempts;
     private bool _refreshing, _refreshAgain, _refreshQueued;
     private bool _disposed;
@@ -212,13 +213,14 @@ public sealed class MediaService : IDisposable
         {
             _trackKey = key;
             _cover = null;
+            _palette = null;
             _coverAttempts = 0;
         }
         // Spotify often announces the track before its thumbnail is ready: retry a few times.
         if (_cover is null && _coverAttempts < 5 && props.Thumbnail is not null)
         {
             _coverAttempts++;
-            _cover = await SaveCoverAsync(props.Thumbnail);
+            (_cover, _palette) = await SaveCoverAsync(props.Thumbnail);
             if (key != _trackKey) return Current; // track changed while we were reading
         }
 
@@ -232,7 +234,7 @@ public sealed class MediaService : IDisposable
             title, artist, album, appId, FriendlyAppName(appId), _cover,
             playback.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing,
             Math.Max(0, position), Math.Max(0, duration), updatedAt,
-            controls.IsPlayPauseToggleEnabled, controls.IsNextEnabled, controls.IsPreviousEnabled);
+            controls.IsPlayPauseToggleEnabled, controls.IsNextEnabled, controls.IsPreviousEnabled, _palette);
     }
 
     private void Publish(TrackState? state)
@@ -244,7 +246,7 @@ public sealed class MediaService : IDisposable
 
     // ---------------------------------------------------------------- cover art
 
-    private static async Task<string?> SaveCoverAsync(Windows.Storage.Streams.IRandomAccessStreamReference thumbnail)
+    private static async Task<(string? Url, IReadOnlyList<string>? Palette)> SaveCoverAsync(Windows.Storage.Streams.IRandomAccessStreamReference thumbnail)
     {
         try
         {
@@ -252,19 +254,22 @@ public sealed class MediaService : IDisposable
             using var input = stream.AsStreamForRead();
             using var ms = new MemoryStream();
             await input.CopyToAsync(ms);
-            if (ms.Length == 0) return null;
+            if (ms.Length == 0) return (null, null);
 
             byte[] bytes = ms.ToArray();
             string ext = bytes.Length > 4 && bytes[0] == 0x89 && bytes[1] == 0x50 ? "png" : "jpg";
             string name = $"{Convert.ToHexString(SHA1.HashData(bytes))[..16].ToLowerInvariant()}.{ext}";
             string path = Path.Combine(ArtDir, name);
             if (!File.Exists(path)) await File.WriteAllBytesAsync(path, bytes);
-            return $"https://{CoverHost}/art/{name}";
+            string[]? palette = null;
+            try { palette = CoverPalette.FromImage(bytes); }
+            catch (Exception ex) { Log.Error("Cover palette failed", ex); }
+            return ($"https://{CoverHost}/art/{name}", palette);
         }
         catch (Exception ex)
         {
             Log.Error("Reading album art failed", ex);
-            return null;
+            return (null, null);
         }
     }
 

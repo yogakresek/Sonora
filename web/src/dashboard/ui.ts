@@ -53,6 +53,7 @@ export const icon = {
   spark: stroke('<path d="M12 3.5l1.8 5.2 5.2 1.8-5.2 1.8L12 17.5l-1.8-5.2L5 10.5l5.2-1.8z"/>'),
   calm: stroke('<path d="M3 14c2.5-3 4.5-3 7 0s4.5 3 7 0 3.5-2 4-2"/><path d="M3 9c2.5-3 4.5-3 7 0s4.5 3 7 0 3.5-2 4-2" opacity=".55"/>'),
   queue: stroke('<path d="M4 6.5h11M4 11.5h11M4 16.5h7"/><path d="M17 14.5v5l4-2.5z" fill="currentColor"/>'),
+  trash: stroke('<path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12.2a1 1 0 0 0 1 .8h7.2a1 1 0 0 0 1-.8L17.5 7"/><path d="M10 11v5.5M14 11v5.5"/>'),
   info: stroke('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h0"/>'),
 };
 
@@ -129,7 +130,7 @@ export function segmented<T extends string | number>(items: { value: T; label: s
   return el;
 }
 
-export function button(label: string, onClick: () => void, variant: 'default' | 'primary' | 'subtle' = 'default', ico?: string): HTMLButtonElement {
+export function button(label: string, onClick: () => void, variant: 'default' | 'primary' | 'subtle' | 'danger' = 'default', ico?: string): HTMLButtonElement {
   const b = h('button', { class: `btn btn--${variant}`, attrs: { type: 'button' } },
     ico ? h('span', { class: 'btn__icon', html: ico }) : null, label);
   b.addEventListener('click', onClick);

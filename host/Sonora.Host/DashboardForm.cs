@@ -149,6 +149,7 @@ public sealed class DashboardForm : Form
                         runtime = RuntimeInformation.FrameworkDescription,
                         webview = _web.CoreWebView2.Environment.BrowserVersionString,
                         mica = _mica,
+                        installed = Installation.IsInstalled,
                     });
                     Post(new { type = "audio-status", status = _services.Audio.Status });
                     Post(new { type = "track", track = _services.Media.Current });
@@ -214,6 +215,10 @@ public sealed class DashboardForm : Form
                         System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri.ToString()) { UseShellExecute = true });
                     break;
 
+                case "uninstall":
+                    ConfirmUninstall();
+                    break;
+
                 case "log":
                     Log.Info($"[dashboard] {(string?)root["message"]}");
                     break;
@@ -227,6 +232,27 @@ public sealed class DashboardForm : Form
         {
             Log.Error("Bad web message", ex);
         }
+    }
+
+    private void ConfirmUninstall()
+    {
+        if (!Installation.IsInstalled)
+        {
+            MessageBox.Show(this, "Ini versi pengembangan (tidak dipasang lewat installer), jadi tidak ada yang perlu di-uninstall.",
+                AppInfo.Name, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var answer = MessageBox.Show(this,
+            "Sonora akan dihapus sepenuhnya dari komputer ini:\n\n" +
+            "•  program, shortcut Desktop dan Start Menu\n" +
+            "•  semua pengaturan, cache lirik dan cover, log\n" +
+            "•  login Spotify dan entri \"Mulai bersama Windows\"\n\n" +
+            "Tindakan ini tidak bisa dibatalkan. Lanjutkan?",
+            "Hapus Sonora sepenuhnya", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+        if (answer != DialogResult.Yes) return;
+        if (Installation.StartUninstall()) Application.Exit();
+        else MessageBox.Show(this, "Uninstaller tidak ditemukan. Hapus Sonora lewat Settings → Apps.", AppInfo.Name,
+            MessageBoxButtons.OK, MessageBoxIcon.Error);
     }
 
     private void PostPrefs()

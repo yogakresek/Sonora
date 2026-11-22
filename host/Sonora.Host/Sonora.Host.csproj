@@ -9,7 +9,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>Sonora</AssemblyName>
     <RootNamespace>Sonora</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>0.4.0</Version>
     <Product>Sonora</Product>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
     <InvariantGlobalization>true</InvariantGlobalization>
@@ -30,6 +30,7 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4370.26" />
     <PackageReference Include="NAudio.Wasapi" Version="3.3.0" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="11.0.0" />
+    <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 
   <!-- WinForms only: drop the WPF control the WebView2 package always references (avoids a WindowsBase conflict). -->

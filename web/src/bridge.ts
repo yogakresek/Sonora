@@ -51,7 +51,7 @@ export interface QueueState {
 export interface WidgetItem { id: string; name: string; description: string; enabled: boolean; locked: boolean; options: Record<string, unknown> }
 
 export type HostMessage =
-  | { type: 'hello'; app: string; version: string; dataDir: string; runtime: string; webview: string; mica?: boolean }
+  | { type: 'hello'; app: string; version: string; dataDir: string; runtime: string; webview: string; mica?: boolean; installed?: boolean }
   | { type: 'audio-status'; status: AudioStatus }
   | { type: 'track'; track: Track | null }
   | { type: 'lyrics'; lyrics: Lyrics | null }
@@ -78,6 +78,7 @@ export type WebMessage =
   | { type: 'spotify-connect'; clientId: string }
   | { type: 'spotify-disconnect' }
   | { type: 'open-url'; url: string }
+  | { type: 'uninstall' }
   | { type: 'prefs'; fps?: number; lyricsOffsetMs?: number; sensitivity?: number; smoothing?: number; startWithWindows?: boolean; calm?: boolean };
 
 export interface SharedBufferMeta {

@@ -311,8 +311,8 @@ Prinsipnya: aplikasi ini harus **mudah dipasang, jelas apa yang dikerjakannya, d
 ### Jejak di sistem (semuanya di satu tempat)
 | Apa | Di mana | Dibersihkan saat uninstall |
 |---|---|---|
-| Program | `%LOCALAPPDATA%\Sonora\` | ✅ |
-| Settings, profil, cache lirik/cover, StatsDB, model ONNX, log | `%LOCALAPPDATA%\Sonora\data\` | ✅ (opsi "simpan pengaturan" bila ingin pasang lagi) |
+| Program (Velopack: `current\`, `Update.exe`) | `%LOCALAPPDATA%\Sonora\` | ✅ |
+| Settings, cache lirik/cover, log, profil WebView2, token Spotify (DPAPI) | `%LOCALAPPDATA%\SonoraData\` (terpisah, supaya reinstall/update tidak menghapusnya) | ✅ lewat hook uninstall |
 | Start bersama Windows | `HKCU\...\Run\Sonora` (1 nilai registry) | ✅ |
 | Screen saver (hanya bila diaktifkan) | `HKCU\Control Panel\Desktop\SCRNSAVE.EXE` | ✅ dikembalikan ke nilai sebelumnya |
 | Entri "Apps & features" | `HKCU\...\Uninstall\Sonora` | ✅ |
@@ -335,6 +335,9 @@ pernah diubah → hapus folder program dan data → hapus entri uninstall. Seles
 - Tombol **Mode ringan**: 30 fps, efek bloom mati, hanya widget yang tampil.
 - Jeda otomatis saat game fullscreen, saat tertutup jendela, dan saat tidak ada musik (lihat 4.7).
 
-### Installer
-Velopack: installer per-user (~setup.exe), update delta kecil dari GitHub Releases, dengan hook
-`--veloapp-uninstall` yang menjalankan pembersihan di atas.
+### Installer (✅ 0.4.0)
+Velopack 1.2: `tools/pack.ps1` → `Sonora-win-Setup.exe` (±17 MB, per-user, memasang .NET 10 Desktop + WebView2 bila perlu).
+Hook `OnBeforeUninstallFastCallback` → `Installation.CleanUp()` menghapus entri Run dan `SonoraData`; Velopack
+menghapus program, shortcut, dan entri Apps. Teruji: setelah uninstall tidak ada sisa satu pun.
+Catatan: Setup mengosongkan `%LOCALAPPDATA%\Sonora` saat memasang, karena itulah data berada di folder terpisah.
+Installer belum ditandatangani (code signing), jadi SmartScreen akan menampilkan peringatan sampai ada sertifikat.

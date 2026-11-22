@@ -383,3 +383,6 @@ code { font: 12px 'Cascadia Code', Consolas, monospace; color: #c4b5fd; }
 .btn:disabled { opacity: 0.55; cursor: default; }
 .page--queue .showcase__stage { height: 360px; }
 .page--queue .tile__stage { height: 130px; }
+.btn--danger { background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.35); color: #fca5a5; }
+.btn--danger:hover { background: rgba(248, 113, 113, 0.22); }
+

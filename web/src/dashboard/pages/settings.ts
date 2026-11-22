@@ -40,7 +40,10 @@ export function settingsPage(container: HTMLElement): () => void {
     group('Data',
       row('Folder data', 'Pengaturan, cache lirik dan cover, serta log. Semuanya ada di satu folder ini.',
         button('Buka folder', () => send({ type: 'open-data-dir' }), 'default', icon.folder), icon.folder)),
-    group('Tentang', about));
+    group('Tentang', about),
+    group('Hapus aplikasi',
+      row('Hapus Sonora sepenuhnya', 'Menghapus program, shortcut, pengaturan, cache, login Spotify, dan entri startup. Tidak ada yang tertinggal. Sama dengan Uninstall di Settings → Apps.',
+        button('Hapus…', () => send({ type: 'uninstall' }), 'danger', icon.trash), icon.trash)));
 
   return () => cleanups.forEach((c) => c());
 }

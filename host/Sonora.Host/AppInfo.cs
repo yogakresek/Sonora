@@ -12,12 +12,16 @@ public static class AppInfo
         Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion.Split('+')[0] ?? "0.0.0";
 
-    /// <summary>%LOCALAPPDATA%\Sonora — the single root for everything the app owns.</summary>
-    public static string Root { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), Name);
+    private static readonly string LocalAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
-    /// <summary>Settings, caches, stats, logs.</summary>
-    public static string DataDir { get; } = Path.Combine(Root, "data");
+    /// <summary>%LOCALAPPDATA%\Sonora — the program, managed by the installer (which empties it on install).</summary>
+    public static string Root { get; } = Path.Combine(LocalAppData, Name);
+
+    /// <summary>
+    /// %LOCALAPPDATA%\SonoraData — settings, caches, logs, the Spotify token. Kept apart from the
+    /// program so reinstalling or updating never touches it; the uninstaller deletes it.
+    /// </summary>
+    public static string DataDir { get; } = Path.Combine(LocalAppData, Name + "Data");
 
     /// <summary>WebView2 profile (cache, local storage).</summary>
     public static string WebViewDir { get; } = Path.Combine(DataDir, "webview");

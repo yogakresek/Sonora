@@ -3,7 +3,7 @@
 import { AudioReader, type AudioFrame } from '../audio';
 import { onMessage, send, type AudioStatus, type HostMessage, type Lyrics, type QueueState, type Track, type WidgetItem } from '../bridge';
 
-export interface AppInfo { app: string; version: string; dataDir: string; runtime: string; webview: string; mica: boolean }
+export interface AppInfo { app: string; version: string; dataDir: string; runtime: string; webview: string; mica: boolean; installed: boolean }
 export interface Prefs { fps: number; lyricsOffsetMs: number; sensitivity: number; smoothing: number; startWithWindows: boolean; calm: boolean }
 
 export const store = {
@@ -36,7 +36,7 @@ function emit(topic: Topic): void {
 onMessage((msg: HostMessage) => {
   switch (msg.type) {
     case 'hello':
-      store.app = { app: msg.app, version: msg.version, dataDir: msg.dataDir, runtime: msg.runtime, webview: msg.webview, mica: !!msg.mica };
+      store.app = { app: msg.app, version: msg.version, dataDir: msg.dataDir, runtime: msg.runtime, webview: msg.webview, mica: !!msg.mica, installed: !!msg.installed };
       emit('app');
       break;
     case 'audio-status': store.audio = msg.status; emit('audio'); break;

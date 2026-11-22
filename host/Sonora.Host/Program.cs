@@ -5,6 +5,11 @@ internal static class Program
     [STAThread]
     private static void Main()
     {
+        // Installer hooks (install / uninstall) run here and exit before anything else starts.
+        Velopack.VelopackApp.Build()
+            .OnBeforeUninstallFastCallback(_ => Installation.CleanUp())
+            .Run();
+
         // One copy at a time; a second launch just asks the first to show its dashboard.
         using var mutex = new Mutex(initiallyOwned: true, $@"Local\{AppInfo.Name}.SingleInstance", out var isFirst);
         if (!isFirst)

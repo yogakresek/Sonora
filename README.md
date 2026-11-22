@@ -3,6 +3,9 @@
 Widget musik untuk desktop Windows: visualizer, lirik tersinkron, dan wallpaper hidup. Gratis dan open source.
 Rancangan lengkapnya ada di [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+### ⬇ [Unduh Sonora untuk Windows](https://github.com/yogakresek/Sonora/releases/latest/download/Sonora-win-Setup.exe)
+Gratis, tanpa akun. Semua versi tersedia di halaman [Releases](https://github.com/yogakresek/Sonora/releases).
+
 **Status:** 0.4.0 — installer + uninstall sekali klik, widget Antrean (Spotify), gaya lirik Kinetik, Mode santai, dashboard bergaya Windows 11, 5 gaya Visualizer, 5 gaya Lirik. Arah desain ada di [docs/DESIGN.md](docs/DESIGN.md).
 
 ## Kebutuhan

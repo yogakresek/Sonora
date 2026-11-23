@@ -25,14 +25,26 @@ public sealed class TrayApp : ApplicationContext
         menu.Items.Add("Buka dashboard", null, (_, _) => ShowDashboard());
         _hideItem = new ToolStripMenuItem("Sembunyikan widget", null, (_, _) => _services.Widgets.SetHidden(!_services.Widgets.Hidden));
         menu.Items.Add(_hideItem);
-        var starItem = new ToolStripMenuItem("Star Mode", null, (_, _) => _services.Widgets.SetStarMode(!_services.Widgets.StarMode));
-        menu.Items.Add(starItem);
+        // Suasana ▸ Mati / Star Mode / Piringan Hitam (one at a time).
+        var ambienceMenu = new ToolStripMenuItem("Suasana");
+        var offItem = new ToolStripMenuItem("Mati", null, (_, _) => _services.Widgets.SetAmbience(null));
+        ambienceMenu.DropDownItems.Add(offItem);
+        ambienceMenu.DropDownItems.Add(new ToolStripSeparator());
+        foreach (var a in Widgets.WidgetManager.Ambiences)
+        {
+            string id = a.Id;
+            ambienceMenu.DropDownItems.Add(new ToolStripMenuItem(a.Name, null, (_, _) => _services.Widgets.SetAmbience(id)) { Tag = id });
+        }
+        menu.Items.Add(ambienceMenu);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Keluar", null, (_, _) => Quit());
         menu.Opening += (_, _) =>
         {
             _hideItem.Text = _services.Widgets.Hidden ? "Tampilkan widget" : "Sembunyikan widget";
-            starItem.Checked = _services.Widgets.StarMode;
+            string? on = _services.Widgets.Ambience;
+            offItem.Checked = on is null;
+            foreach (ToolStripItem item in ambienceMenu.DropDownItems)
+                if (item is ToolStripMenuItem m && m.Tag is string id) m.Checked = id == on;
         };
 
         _tray = new NotifyIcon

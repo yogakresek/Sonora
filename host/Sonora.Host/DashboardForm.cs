@@ -178,8 +178,8 @@ public sealed class DashboardForm : Form
                         _services.Widgets.SetOptions(id, (JsonObject)options.DeepClone());
                     break;
 
-                case "star-mode":
-                    _services.Widgets.SetStarMode((bool?)root["on"] ?? false);
+                case "ambience":
+                    _services.Widgets.SetAmbience((string?)root["id"]);
                     break;
 
                 case "widgets-hidden":
@@ -297,7 +297,7 @@ public sealed class DashboardForm : Form
     private void OnQueue(QueueState queue) => Post(new { type = "queue", queue, redirectUri = SpotifyClient.RedirectUri });
 
     private void OnWidgets() =>
-        Post(new { type = "widgets", items = _services.Widgets.Describe(), hidden = _services.Widgets.Hidden, star = _services.Widgets.DescribeStar() });
+        Post(new { type = "widgets", items = _services.Widgets.Describe(), hidden = _services.Widgets.Hidden, ambience = _services.Widgets.DescribeAmbience() });
 
     private void Post(object message)
     {

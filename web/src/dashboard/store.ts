@@ -15,7 +15,8 @@ export const store = {
   spotifyRedirectUri: '',
   widgets: [] as WidgetItem[],
   hidden: false,
-  star: { on: false, options: {} as Record<string, unknown> },
+  /** Suasana: which full-screen ambience is on (null = none) and each one's options. */
+  ambience: { active: null as string | null, options: {} as Record<string, Record<string, unknown>> },
   prefs: { fps: 60, lyricsOffsetMs: 0, sensitivity: 1, smoothing: 0.72, startWithWindows: false, calm: false } as Prefs,
 };
 
@@ -51,7 +52,7 @@ onMessage((msg: HostMessage) => {
     case 'widgets':
       store.widgets = msg.items;
       store.hidden = msg.hidden;
-      if (msg.star) store.star = msg.star;
+      if (msg.ambience) store.ambience = msg.ambience;
       emit('widgets');
       break;
     case 'prefs':
@@ -70,7 +71,7 @@ const pending = new Map<string, number>();
 export function setWidgetOptions(id: string, options: Record<string, unknown>): void {
   const item = widget(id);
   if (item) item.options = options;
-  if (id === 'star') store.star.options = options;
+  if (id in store.ambience.options || id === 'star' || id === 'vinyl') store.ambience.options[id] = options;
   clearTimeout(pending.get(id));
   pending.set(id, window.setTimeout(() => send({ type: 'widget-options', id, options }), 90));
 }

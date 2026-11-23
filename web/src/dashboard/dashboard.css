@@ -383,6 +383,38 @@ code { font: 12px 'Cascadia Code', Consolas, monospace; color: #c4b5fd; }
 .spotify__status-text span { color: var(--text-2); font-size: 12.5px; }
 .btn:disabled { opacity: 0.55; cursor: default; }
 .page--queue .showcase__stage { height: 360px; }
+.btn[hidden] { display: none; }
+.page__header .btn { white-space: nowrap; flex: none; }
+
+/* ---------------------------------------------------------------- Suasana gallery */
+.moods { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-bottom: 26px; }
+.mood {
+  display: flex; flex-direction: column; overflow: hidden; cursor: pointer;
+  border-radius: var(--r-lg, 16px); border: 1px solid var(--line); background: var(--surface);
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+.mood:hover { border-color: rgba(255, 255, 255, 0.22); }
+.mood.is-selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.mood__stage { position: relative; aspect-ratio: 16 / 9; }
+.mood__foot { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+.mood__text { flex: 1; min-width: 0; }
+.mood__name { font-weight: 600; font-size: 14px; }
+.mood__hint { color: var(--text-2); font-size: 12.5px; margin-top: 2px; }
+.mood__action { flex: none; }
+.mood__badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
+  background: rgba(139, 92, 246, 0.2); color: #d8ccff; font-size: 12px; font-weight: 600;
+}
+.mood__badge::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #a78bfa; box-shadow: 0 0 8px #a78bfa; }
+.mood--soon {
+  cursor: default; align-items: center; justify-content: center; gap: 6px; min-height: 160px;
+  border-style: dashed; background: transparent; color: var(--text-3, var(--text-2)); font-size: 12.5px;
+}
+.mood--soon:hover { border-color: var(--line); }
+.mood__plus { font-size: 26px; line-height: 1; opacity: 0.6; }
+.mood__tip { display: flex; gap: 10px; align-items: flex-start; margin: 10px 2px 0; color: var(--text-2); font-size: 12.5px; }
+.mood__tip svg { width: 17px; height: 17px; flex: none; margin-top: 1px; }
+
 .star-note {
   display: flex; align-items: center; gap: 14px;
   margin-bottom: 12px; padding: 12px 12px 12px 16px;

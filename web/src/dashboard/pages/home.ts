@@ -125,11 +125,13 @@ export function homePage(container: HTMLElement): () => void {
   // While Star Mode is on, the widgets are put away: say so here, or their switches look broken.
   const starNote = h('div', { class: 'star-note' });
   function showStarNote(): void {
-    starNote.hidden = !store.star.on;
-    if (!store.star.on) return;
-    starNote.innerHTML = `<span class="star-note__icon">${icon.star}</span>
-      <span class="star-note__text"><b>Star Mode sedang menyala</b><span>Widget di bawah disembunyikan sementara dan kembali seperti semula saat Star Mode dimatikan.</span></span>`;
-    starNote.append(h('button', { class: 'btn btn--default', attrs: { type: 'button' }, on: { click: () => send({ type: 'star-mode', on: false }) } }, 'Matikan Star Mode'));
+    const active = store.ambience.active;
+    starNote.hidden = !active;
+    if (!active) return;
+    const name = active === 'vinyl' ? 'Piringan Hitam' : 'Star Mode';
+    starNote.innerHTML = `<span class="star-note__icon">${active === 'vinyl' ? icon.vinyl : icon.star}</span>
+      <span class="star-note__text"><b>Suasana ${name} sedang menyala</b><span>Widget di bawah disembunyikan sementara dan kembali seperti semula saat suasana dimatikan.</span></span>`;
+    starNote.append(h('button', { class: 'btn btn--default', attrs: { type: 'button' }, on: { click: () => send({ type: 'ambience', id: null }) } }, 'Matikan suasana'));
   }
   showStarNote();
   cleanups.push(on('widgets', showStarNote));

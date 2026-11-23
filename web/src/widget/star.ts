@@ -15,26 +15,7 @@ import type { AudioFrame } from '../audio';
 import { send, trackKey, trackPosition, type LyricLine, type Track } from '../bridge';
 import { STAR_DEFAULTS, fitCanvas, hexToRgb, resolvePalette, withDefaults, type StarOptions, type WidgetContext, type WidgetModule, type WidgetState } from './types';
 import { BUSY_RATE, VocalOnsets, WordGate, estimateWords } from './word-gate';
-
-// A per-song lyric shift the user sets from the top bar (LRCLIB timings are written by people and
-// some songs are simply early or late). Remembered between plays, kept in this WebView's storage.
-// (Measuring the shift automatically was tried and rejected: on real, drum-heavy songs the voice
-// onsets didn't agree with themselves, so it would have made some songs worse.)
-const SHIFT_STORE = 'sonora.star.songShift';
-try { localStorage.removeItem('sonora.star.sync'); } catch { /* the experiment's leftovers */ }
-function loadShifts(): Record<string, number> {
-  try { return JSON.parse(localStorage.getItem(SHIFT_STORE) ?? '{}') ?? {}; } catch { return {}; }
-}
-function songShift(song: string): number {
-  return loadShifts()[song] ?? 0;
-}
-function saveSongShift(song: string, ms: number): void {
-  const all = loadShifts();
-  if (ms === 0) delete all[song]; else all[song] = ms;
-  const keys = Object.keys(all);
-  if (keys.length > 500) delete all[keys[0]];
-  try { localStorage.setItem(SHIFT_STORE, JSON.stringify(all)); } catch { /* storage full or off: fine */ }
-}
+import { AlbumSky, ICON_NEXT, ICON_PAUSE, ICON_PLAY, ICON_PREV, ICON_STAR, clock, createAmbienceShell, easeOut, lineAt, saveSongShift, songShift } from './ambience';
 
 interface Star {
   x: number; y: number;  // device px
@@ -54,7 +35,6 @@ const DRAW_MS = 150;      // a line shoots to the new star
 const POP_MS = 190;       // the new word slams in
 const SHRINK_MS = 160;    // the previous word steps back
 const FLASH_MS = 520;     // the ring burst around a new star
-const BACKDROP_FADE_MS = 1400;
 const SKY_STARS = 170;
 
 export function createStar(ctx: WidgetContext): WidgetModule {
@@ -137,81 +117,19 @@ export function createStar(ctx: WidgetContext): WidgetModule {
     }
   }
 
-  // ---------------------------------------------------------------- the way out (desktop only)
-  //
-  // Like a full-screen video: moving the mouse over the sky shows a small bar at the top with
-  // "Keluar"; it fades once the mouse rests. Only the card and that button take clicks (the host
-  // is told where they are); everywhere else, clicks go to the desktop as usual.
-
-  let bar: HTMLElement | null = null;
-  let barTimer = 0;
-  let barShown = false;
-  if (!ctx.preview) {
-    bar = document.createElement('div');
-    bar.className = 'star__bar';
-    bar.dataset.nodrag = '';
-    bar.innerHTML = `
-      <span class="star__bar-label">${STAR_ICON}<span>Star Mode</span></span>
-      <span class="star__sync" title="Geser waktu lirik untuk lagu ini saja (diingat)">
-        <span class="star__sync-label">Lirik</span>
-        <button type="button" data-shift="-100" aria-label="Lirik lebih cepat 0,1 detik">−</button>
-        <span class="star__sync-value"></span>
-        <button type="button" data-shift="100" aria-label="Lirik lebih lambat 0,1 detik">+</button>
-      </span>
-      <button type="button" class="star__exit" aria-label="Keluar dari Star Mode">${X_ICON}<span>Keluar</span></button>`;
-    ctx.stage.append(bar);
-    bar.querySelector('.star__exit')!.addEventListener('click', () => send({ type: 'star-mode', on: false }));
-    bar.querySelector('.star__sync')!.addEventListener('click', (e) => {
-      const step = Number((e.target as HTMLElement).closest<HTMLElement>('[data-shift]')?.dataset.shift ?? 0);
-      if (!step || !key) return;
+  // The top bar (Keluar, Lirik − / +) and the clickable areas: shared by every ambience.
+  const shell = createAmbienceShell(ctx, {
+    name: 'Star Mode',
+    icon: ICON_STAR,
+    areas: () => [card],
+    onShift: (step) => {
+      if (!key) return;
       shift = Math.max(-3000, Math.min(3000, shift + step));
       saveSongShift(key, shift);
       index = -2; // redraw the current line at its new moment
-      paintShift();
-      showBar();
-    });
-    setTimeout(() => showBar(5000), 600); // show it at the start, so the way out is clear
-  }
-
-  function paintShift(): void {
-    const el = bar?.querySelector<HTMLElement>('.star__sync-value');
-    if (!el) return;
-    el.textContent = shift === 0 ? '0,0 dtk' : `${shift > 0 ? '+' : '−'}${(Math.abs(shift) / 1000).toFixed(1).replace('.', ',')} dtk`;
-    el.classList.toggle('is-set', shift !== 0);
-  }
-
-  function reportHitAreas(): void {
-    if (ctx.preview) return;
-    const dpr = window.devicePixelRatio || 1;
-    const rects: number[][] = [];
-    const add = (el: Element, pad: number) => {
-      const r = el.getBoundingClientRect();
-      if (r.width > 0) rects.push([(r.left - pad) * dpr, (r.top - pad) * dpr, (r.width + pad * 2) * dpr, (r.height + pad * 2) * dpr]);
-    };
-    if (!card.hidden) add(card, 4);
-    if (barShown && bar) add(bar, 4);
-    send({ type: 'hit-areas', rects });
-  }
-
-  function showBar(ms = 2500): void {
-    if (!bar) return;
-    clearTimeout(barTimer);
-    if (!barShown) {
-      barShown = true;
-      bar.classList.add('is-shown');
-      reportHitAreas();
-      setTimeout(reportHitAreas, 320); // again once it has slid into place
-    }
-    barTimer = window.setTimeout(hideBar, ms);
-  }
-
-  function hideBar(): void {
-    if (!bar || !barShown) return;
-    if (bar.querySelector('.is-hover')) { barTimer = window.setTimeout(hideBar, 1200); return; }
-    barShown = false;
-    bar.classList.remove('is-shown');
-    reportHitAreas();
-  }
+      shell.paintShift(shift);
+    },
+  });
 
   // ---------------------------------------------------------------- state
 
@@ -240,7 +158,7 @@ export function createStar(ctx: WidgetContext): WidgetModule {
   function resize(): void {
     const w = ctx.root.clientWidth, h = ctx.root.clientHeight;
     card.style.fontSize = `${Math.max(5, Math.min(w, h) / 70)}px`;
-    requestAnimationFrame(reportHitAreas);
+    requestAnimationFrame(() => shell.report());
   }
   new ResizeObserver(resize).observe(ctx.root);
   resize();
@@ -323,13 +241,6 @@ export function createStar(ctx: WidgetContext): WidgetModule {
     titleTimer = now;
   }
 
-  function findIndex(pos: number): number {
-    let i = Math.max(-1, Math.min(index, lines.length - 1));
-    if (i >= 0 && lines[i].t > pos) i = -1;
-    while (i + 1 < lines.length && lines[i + 1].t <= pos) i++;
-    return i;
-  }
-
   function reveal(c: Constellation, i: number, now: number): void {
     for (const s of c.stars) if (s.lead) { s.lead = false; s.leadEnd = now; }
     const s = c.stars[i];
@@ -339,105 +250,9 @@ export function createStar(ctx: WidgetContext): WidgetModule {
     for (const e of c.edges) if ((e.b === i && c.stars[e.a].sung) || (e.a === i && c.stars[e.b].sung)) e.at = now;
   }
 
-  // ---------------------------------------------------------------- backdrop: the album's own sky
-  //
-  // The cover, blurred into soft colour and darkened, fills the screen; every song gets its own
-  // sky, crossfading from the last. Painted once per song (it's the costly full-screen part).
+  // ---------------------------------------------------------------- sky layer (album sky + faint stars)
 
-  const backdrop = document.createElement('canvas');
-  const bdg = backdrop.getContext('2d')!;
-  const prevBackdrop = document.createElement('canvas');
-  const pbg = prevBackdrop.getContext('2d')!;
-  const tiny = document.createElement('canvas');
-  const small = document.createElement('canvas');
-  let backKey = '';
-  let crossFrom = -1e9;
-  let coverEl: HTMLImageElement | null = null;
-  let coverUrl = '';      // the cover the backdrop should show
-  let coverReady = '';    // the cover that has finished loading
-
-  function loadCover(url: string | null): void {
-    if ((url ?? '') === coverUrl) return;
-    coverUrl = url ?? '';
-    coverReady = '';
-    if (!url) { coverEl = null; return; }
-    const img = new Image();
-    img.onload = () => { if (coverUrl === url) { coverEl = img; coverReady = url; } };
-    img.onerror = () => { if (coverUrl === url) { coverEl = null; coverReady = 'none'; } };
-    img.src = url;
-  }
-
-  /** Repaints the backdrop when the song, colours, darkness or size changed. True if it did. */
-  function ensureBackdrop(W: number, H: number, now: number): boolean {
-    // Wait (briefly) for the new cover before switching, so the sky changes once, not twice.
-    const source = !opts.backdrop ? 'wallpaper' : coverUrl && coverReady !== coverUrl && coverReady !== 'none' ? null : coverReady || 'palette';
-    if (source === null) return false;
-    const want = `${source}|${palette.join()}|${opts.dim}|${W}x${H}`;
-    if (want === backKey) return false;
-    const resized = backdrop.width !== W || backdrop.height !== H;
-    if (backKey && !resized) {
-      prevBackdrop.width = W; prevBackdrop.height = H;
-      pbg.clearRect(0, 0, W, H);
-      pbg.drawImage(backdrop, 0, 0);
-      crossFrom = now;
-    }
-    backKey = want;
-    if (resized) { backdrop.width = W; backdrop.height = H; }
-    paintBackdrop(W, H, source);
-    return true;
-  }
-
-  function paintBackdrop(W: number, H: number, source: string): void {
-    const b = bdg;
-    b.clearRect(0, 0, W, H);
-    if (source === 'wallpaper') {
-      // The old look: the wallpaper itself, darkened.
-      b.fillStyle = `rgba(4, 6, 14, ${opts.dim})`;
-      b.fillRect(0, 0, W, H);
-    } else {
-      b.fillStyle = '#05060c';
-      b.fillRect(0, 0, W, H);
-      if (coverEl && source !== 'palette' && source !== 'none') {
-        // Shrink the cover to a handful of pixels and blow it up again: a soft wash of its colours.
-        const tw = 36, th = Math.max(8, Math.round((36 * H) / W));
-        tiny.width = tw; tiny.height = th;
-        const t = tiny.getContext('2d')!;
-        const s = Math.max(tw / coverEl.naturalWidth, th / coverEl.naturalHeight);
-        const iw = coverEl.naturalWidth * s, ih = coverEl.naturalHeight * s;
-        t.drawImage(coverEl, (tw - iw) / 2, (th - ih) / 2, iw, ih);
-        small.width = 320; small.height = Math.round((320 * H) / W);
-        const m = small.getContext('2d')!;
-        m.filter = 'blur(14px) saturate(1.35)';
-        m.imageSmoothingQuality = 'high';
-        m.drawImage(tiny, -40, -40, small.width + 80, small.height + 80);
-        m.filter = 'none';
-        b.imageSmoothingQuality = 'high';
-        b.drawImage(small, 0, 0, W, H);
-      }
-      // The cover's own bright colours as slow nebulae (and the whole sky when there's no cover).
-      const spots: [number, number, number][] = [[0.18, 0.22, 0.75], [0.85, 0.3, 0.65], [0.55, 0.92, 0.8]];
-      palette.slice(0, 3).forEach((c, i) => {
-        const [x, y, r] = spots[i];
-        const [cr, cg, cb] = hexToRgb(c);
-        const grad = b.createRadialGradient(W * x, H * y, 0, W * x, H * y, Math.max(W, H) * r);
-        grad.addColorStop(0, `rgba(${cr},${cg},${cb},${coverEl ? 0.22 : 0.42})`);
-        grad.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
-        b.fillStyle = grad;
-        b.fillRect(0, 0, W, H);
-      });
-      // Night falls over it: the darkness slider still applies, a bit lighter so the colour shows.
-      b.fillStyle = `rgba(4, 6, 14, ${0.12 + opts.dim * 0.62})`;
-      b.fillRect(0, 0, W, H);
-    }
-    const v = b.createRadialGradient(W / 2, H * 0.42, Math.min(W, H) * 0.2, W / 2, H * 0.5, Math.max(W, H) * 0.75);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, `rgba(0,0,0,${Math.min(0.55, opts.dim * 0.5)})`);
-    b.fillStyle = v;
-    b.fillRect(0, 0, W, H);
-  }
-
-  // ---------------------------------------------------------------- sky layer (backdrop + faint stars)
-
+  const albumSky = new AlbumSky();
   const skyLayer = document.createElement('canvas');
   const sg = skyLayer.getContext('2d')!;
   let skyPainted = -1e9;
@@ -450,18 +265,13 @@ export function createStar(ctx: WidgetContext): WidgetModule {
       sky = Array.from({ length: SKY_STARS }, () => ({ x: rand() * W, y: rand() * H, r: 0.4 + rand() * 1.1, a: 0.12 + rand() * 0.38, p: rand() * 6.28 }));
       skyPainted = -1e9;
     }
-    const changed = ensureBackdrop(W, H, t);
-    const crossing = t - crossFrom < BACKDROP_FADE_MS;
+    const changed = albumSky.ensure(W, H, t, { album: opts.backdrop, dim: opts.dim, palette });
+    const crossing = albumSky.crossing(t);
     const twinkle = opts.twinkle && !calm;
     if (changed || crossing || (twinkle && t - skyPainted > 100) || skyPainted < 0) {
       skyPainted = t;
       sg.clearRect(0, 0, W, H);
-      sg.drawImage(backdrop, 0, 0);
-      if (crossing) {
-        sg.globalAlpha = 1 - easeInOut((t - crossFrom) / BACKDROP_FADE_MS);
-        sg.drawImage(prevBackdrop, 0, 0);
-        sg.globalAlpha = 1;
-      }
+      albumSky.draw(sg, t);
       const dpr = W / Math.max(1, ctx.root.clientWidth);
       sg.fillStyle = '#fff';
       for (const s of sky) {
@@ -572,7 +382,7 @@ export function createStar(ctx: WidgetContext): WidgetModule {
   function paintCard(state: WidgetState): void {
     const wasHidden = card.hidden;
     card.hidden = !opts.info || !track;
-    if (wasHidden !== card.hidden) requestAnimationFrame(reportHitAreas);
+    if (wasHidden !== card.hidden) requestAnimationFrame(shell.report);
     if (!track) return;
     if (track.cover) coverImg.src = track.cover;
     coverImg.hidden = !track.cover;
@@ -595,7 +405,7 @@ export function createStar(ctx: WidgetContext): WidgetModule {
 
   return {
     pointer(kind: string): void {
-      if (kind === 'enter' || kind === 'move') showBar();
+      if (kind === 'enter' || kind === 'move') shell.wake();
     },
 
     update(state: WidgetState): void {
@@ -605,7 +415,7 @@ export function createStar(ctx: WidgetContext): WidgetModule {
       track = state.track;
       palette = resolvePalette('cover', [], track);
       accent = hexToRgb(palette[0]);
-      loadCover(track?.cover ?? null);
+      albumSky.loadCover(track?.cover ?? null);
       const l = state.lyrics;
       lines = track && l && l.key === trackKey(track) && l.status === 'synced' ? l.lines : [];
       const k = track ? trackKey(track) : '';
@@ -614,7 +424,7 @@ export function createStar(ctx: WidgetContext): WidgetModule {
         index = -2;
         retire(performance.now());
         shift = ctx.preview ? 0 : songShift(key);
-        paintShift();
+        shell.paintShift(shift);
       } else if (index >= 0 && lines.length === 0) {
         index = -2;
       }
@@ -631,7 +441,7 @@ export function createStar(ctx: WidgetContext): WidgetModule {
       if (track) {
         // The global lyric offset (Lirik page), plus this song's own shift (top bar).
         const pos = trackPosition(track) - offset - shift;
-        const idx = lines.length ? findIndex(pos) : -1;
+        const idx = lines.length ? lineAt(lines, pos, index) : -1;
         if (idx !== index) {
           index = idx;
           if (idx < 0 || lines[idx].text.trim() === '') {
@@ -657,7 +467,7 @@ export function createStar(ctx: WidgetContext): WidgetModule {
 
       // Full speed only while something moves; otherwise the sky just twinkles (or rests).
       const busyFor = (c: Constellation) => c.stars.some((s) => s.sung && (now - s.shownAt < FLASH_MS || (s.leadEnd && now - s.leadEnd < SHRINK_MS)));
-      const animating = fading.length > 0 || (current ? busyFor(current) : false) || now - crossFrom < BACKDROP_FADE_MS;
+      const animating = fading.length > 0 || (current ? busyFor(current) : false) || albumSky.crossing(now);
       const playing = !!track?.playing;
       const interval = animating ? 14 : opts.twinkle && !calm ? 50 : playing ? 100 : 250;
       if (now - lastDraw < interval) return animating || playing;
@@ -695,20 +505,6 @@ function centroid(stars: Star[]): { x: number; y: number } {
   return { x, y };
 }
 
-function easeOut(t: number): number {
-  return 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
-}
-
-function easeInOut(t: number): number {
-  t = Math.min(1, Math.max(0, t));
-  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
-function clock(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-}
-
 function hash(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
@@ -724,10 +520,3 @@ function rng(seed: number): () => number {
   };
 }
 
-const svg = (d: string, size = 18) => `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor" aria-hidden="true">${d}</svg>`;
-const ICON_PLAY = svg('<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>');
-const ICON_PAUSE = svg('<rect x="6.5" y="5" width="4" height="14" rx="1.2"/><rect x="13.5" y="5" width="4" height="14" rx="1.2"/>');
-const ICON_PREV = svg('<rect x="5" y="5" width="2.5" height="14" rx="1"/><path d="M19 6.2v11.6a1 1 0 0 1-1.55.83L9.3 12.83a1 1 0 0 1 0-1.66l8.15-5.8A1 1 0 0 1 19 6.2z"/>', 16);
-const ICON_NEXT = svg('<rect x="16.5" y="5" width="2.5" height="14" rx="1"/><path d="M5 6.2v11.6a1 1 0 0 0 1.55.83l8.15-5.8a1 1 0 0 0 0-1.66L6.55 5.37A1 1 0 0 0 5 6.2z"/>', 16);
-const STAR_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.9 7.6 7.6 1.9-7.6 1.9L12 21.5l-1.9-7.6L2.5 12l7.6-1.9z"/></svg>';
-const X_ICON = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';

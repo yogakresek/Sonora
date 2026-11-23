@@ -83,6 +83,11 @@ internal static class Native
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern uint RegisterWindowMessageW(string name);
 
+    public const uint SMTO_NORMAL = 0x0000;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern IntPtr SendMessageTimeoutW(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam, uint flags, uint timeoutMs, out IntPtr result);
+
     [DllImport("user32.dll")]
     public static extern IntPtr MonitorFromPoint(POINT pt, uint flags);
 

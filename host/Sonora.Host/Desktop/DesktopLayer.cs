@@ -34,9 +34,33 @@ internal static class DesktopLayer
         return found;
     }
 
+    /// <summary>
+    /// Makes sure the desktop has its wallpaper layer (a WorkerW). Widgets are see-through only over
+    /// that layer: without it they show a black box. Explorer creates it only when asked (by the
+    /// undocumented message 0x052C, the one live-wallpaper apps use) or by itself on, e.g., a
+    /// wallpaper change. Before a reboot something had usually asked; right after one, nothing has,
+    /// so every widget came up black. Cheap and harmless to call again: if the layer exists, nothing
+    /// happens. Returns true if it had to be created.
+    /// </summary>
+    public static bool EnsureWallpaperLayer()
+    {
+        var progman = Native.FindWindowW("Progman", null);
+        if (progman == IntPtr.Zero) return false;
+        // 24H2+: the layer is a WorkerW inside Progman. Older builds: a top-level WorkerW next to it.
+        bool newLayout = Native.FindWindowExW(progman, IntPtr.Zero, "SHELLDLL_DefView", null) != IntPtr.Zero;
+        if (newLayout && Native.FindWindowExW(progman, IntPtr.Zero, "WorkerW", null) != IntPtr.Zero) return false;
+        if (!newLayout) return false; // the older layout keeps its own WorkerW host; nothing to fix there
+        Native.SendMessageTimeoutW(progman, 0x052C, 0xD, 0x1, Native.SMTO_NORMAL, 1000, out _);
+        bool created = Native.FindWindowExW(progman, IntPtr.Zero, "WorkerW", null) != IntPtr.Zero;
+        Log.Info(created ? "Desktop wallpaper layer was missing; asked Explorer to create it"
+                         : "Desktop wallpaper layer missing and Explorer did not create it");
+        return created;
+    }
+
     /// <summary>Makes <paramref name="hwnd"/> a child of the icon host. Returns the host, or zero (left as a normal window).</summary>
     public static IntPtr Attach(IntPtr hwnd)
     {
+        EnsureWallpaperLayer();
         var host = FindIconHost();
         if (host == IntPtr.Zero) return IntPtr.Zero;
 

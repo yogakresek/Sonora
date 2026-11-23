@@ -8,6 +8,7 @@ import { createQueue } from './queue';
 import { createVisualizer } from './visualizer';
 import { createLyrics } from './lyrics';
 import { createStar } from './star';
+import { createVinyl } from './vinyl';
 import type { WidgetContext, WidgetModule, WidgetState } from './types';
 
 const id = new URLSearchParams(location.search).get('id') ?? 'cover';
@@ -25,7 +26,10 @@ let keepAspect = false;
 
 const ctx: WidgetContext = { root, stage, state };
 const widget: WidgetModule =
-  id === 'lyrics' ? createLyrics(ctx) : id === 'queue' ? createQueue(ctx) : id === 'star' ? createStar(ctx) : createVisualizer(ctx);
+  id === 'lyrics' ? createLyrics(ctx) : id === 'queue' ? createQueue(ctx) : id === 'star' ? createStar(ctx)
+  : id === 'vinyl' ? createVinyl(ctx) : createVisualizer(ctx);
+/** Full-screen ambiences (Suasana): never dragged or resized; their scene handles the pointer. */
+const ambience = id === 'star' || id === 'vinyl';
 const audio = new AudioReader();
 
 // ------------------------------------------------------------------ host messages
@@ -140,7 +144,7 @@ function onPointer(kind: string, x: number, y: number, clicks: number): void {
       setHovered(null);
       break;
     case 'down':
-      if (id === 'star' && !button && !slider) return; // the sky itself isn't dragged or double-clicked
+      if (ambience && !button && !slider) return; // the scene itself isn't dragged or double-clicked
       if (clicks >= 2 && !button) {
         send({ type: 'open-dashboard' });
         return;

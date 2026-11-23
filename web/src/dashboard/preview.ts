@@ -4,6 +4,7 @@
 import type { Lyrics, Track } from '../bridge';
 import { createLyrics } from '../widget/lyrics';
 import { createStar } from '../widget/star';
+import { createVinyl } from '../widget/vinyl';
 import type { WidgetContext, WidgetModule, WidgetState } from '../widget/types';
 import { createVisualizer } from '../widget/visualizer';
 import { createQueue, DEMO_QUEUE } from '../widget/queue';
@@ -55,8 +56,9 @@ export function mountPreview(host: HTMLElement, kind: string, options: () => Rec
   const state: WidgetState = { track: null, lyrics: null, locked: true, options: {}, lyricsOffsetMs: 0, calm: false, queue: null };
   const ctx: WidgetContext = { root, stage, state, preview: true };
   const module: WidgetModule =
-    kind === 'lyrics' ? createLyrics(ctx) : kind === 'queue' ? createQueue(ctx) : kind === 'star' ? createStar(ctx) : createVisualizer(ctx);
-  const wordy = kind === 'lyrics' || kind === 'star';
+    kind === 'lyrics' ? createLyrics(ctx) : kind === 'queue' ? createQueue(ctx) : kind === 'star' ? createStar(ctx)
+    : kind === 'vinyl' ? createVinyl(ctx) : createVisualizer(ctx);
+  const wordy = kind === 'lyrics' || kind === 'star' || kind === 'vinyl';
 
   let demo = false;
   function refresh(): void {

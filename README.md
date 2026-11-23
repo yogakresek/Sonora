@@ -6,8 +6,10 @@ Rancangan lengkapnya ada di [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ### ⬇ [Unduh Sonora untuk Windows](https://github.com/yogakresek/Sonora/releases/latest/download/Sonora-win-Setup.exe)
 Gratis, tanpa akun. Semua versi tersedia di halaman [Releases](https://github.com/yogakresek/Sonora/releases).
 
-**Status kode:** 0.5.6. Isinya:
-- **Star Mode:** lirik membentuk rasi bintang di layar penuh, dengan langit dari warna album tiap lagu. Ada kartu lagu interaktif, dan waktu lirik bisa digeser per lagu.
+**Status kode:** 0.6.6. Isinya:
+- **Suasana:** satu suasana layar penuh menggantikan widget sampai dimatikan. Waktu lirik bisa digeser per lagu.
+  - **Star Mode:** lirik membentuk rasi bintang dengan langit dari warna album, plus kartu lagu interaktif.
+  - **Piringan Hitam:** piringan "terbit" dari bawah layar dengan label cover yang berputar 33⅓ rpm. Lirik melengkung di alur dan mengalir ke jarum. Tonearm S-arm bisa digeser untuk pindah menit, dan warna piringan mengikuti cover.
 - **Visualizer:** garis waktu lagu yang bisa digeser ke menit mana pun, tanpa perlu Premium.
 - **Antrean Spotify:** lagu berikutnya dan sebelumnya bisa diklik.
 - **Lirik:** 5 gaya (termasuk Kinetik yang menunggu suara penyanyi), menyesuaikan ukuran supaya muat, dan sinkron dengan lagu.
@@ -62,7 +64,7 @@ dotnet test
 ## Struktur
 ```
 host/Sonora.Host/   proses inti .NET: tray, audio (WASAPI), media (Windows), lirik, Spotify, widget desktop
-web/                frontend TypeScript + Vite: dashboard dan widget (visualizer, lirik, antrean, Star Mode)
+web/                frontend TypeScript + Vite: dashboard, widget (visualizer, lirik, antrean), dan suasana (Star Mode, Piringan Hitam)
 tests/              unit test: analyzer audio, jam pemutaran, area klik
 docs/               rancangan
 ```

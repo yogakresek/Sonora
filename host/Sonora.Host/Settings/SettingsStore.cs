@@ -24,8 +24,15 @@ public sealed class AppSettings
     public bool FirstRunDone { get; set; }
     /// <summary>Hide every widget without forgetting which are on (tray toggle).</summary>
     public bool WidgetsHidden { get; set; }
-    /// <summary>Star Mode: one full-screen constellation of lyrics instead of the widgets, until turned off.
-    /// The widgets' own Enabled flags are left alone, so they come back exactly as they were.</summary>
+    /// <summary>
+    /// Suasana: the full-screen ambience shown instead of the widgets ("star", "vinyl"), or null.
+    /// Stays on for every song until turned off. The widgets' own Enabled flags are left alone, so
+    /// they come back exactly as they were.
+    /// </summary>
+    public string? Ambience { get; set; }
+
+    /// <summary>Before 0.6 there was only Star Mode; read once and moved into <see cref="Ambience"/>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool StarMode { get; set; }
     /// <summary>Shifts every lyric line; positive = words appear later.</summary>
     public int LyricsOffsetMs { get; set; }
@@ -64,7 +71,11 @@ public sealed class SettingsStore : IDisposable
         try
         {
             if (File.Exists(_path))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_path), Json) ?? new AppSettings();
+            {
+                var s = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(_path), Json) ?? new AppSettings();
+                if (s.StarMode) { s.Ambience ??= "star"; s.StarMode = false; } // from 0.5.x
+                return s;
+            }
         }
         catch (Exception ex)
         {

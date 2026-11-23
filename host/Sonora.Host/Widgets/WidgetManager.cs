@@ -23,10 +23,19 @@ public sealed class WidgetManager : IDisposable
         new("queue", "Antrean", "Lagu berikutnya dari Spotify; klik salah satunya untuk langsung memutarnya.", 540, 380, false),
     ];
 
-    /// <summary>Star Mode's full-screen layer. Not in the catalog: it isn't a widget you place.</summary>
-    public static readonly WidgetInfo Star = new("star", "Star Mode", "Lirik membentuk rasi bintang di layar.", 0, 0, false);
+    /// <summary>
+    /// Suasana: full-screen ambiences, at most one at a time, shown instead of the widgets. Not in
+    /// the widget catalog: they aren't placed or moved. Adding one = an entry here + its web scene.
+    /// </summary>
+    public static readonly WidgetInfo[] Ambiences =
+    [
+        new("star", "Star Mode", "Lirik membentuk rasi bintang di layar.", 0, 0, false),
+        new("vinyl", "Piringan Hitam", "Piringan berputar, lirik melengkung di alurnya.", 0, 0, false),
+    ];
 
-    private static WidgetInfo? Info(string id) => id == Star.Id ? Star : Catalog.FirstOrDefault(i => i.Id == id);
+    public static bool IsAmbience(string id) => Ambiences.Any(a => a.Id == id);
+
+    private static WidgetInfo? Info(string id) => Ambiences.FirstOrDefault(a => a.Id == id) ?? Catalog.FirstOrDefault(i => i.Id == id);
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
@@ -53,25 +62,37 @@ public sealed class WidgetManager : IDisposable
         _services.Audio.StatusChanged += OnAudioStatus;
         _explorer = new ExplorerWatcher(Rebuild);
         _input = new DesktopInput(services.Ui, () => _windows.Values);
-        // Resolution / scale / monitor changes: the Star Mode sky must keep covering the screen.
+        // Resolution / scale / monitor changes: an ambience must keep covering the screen.
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged += OnDisplayChanged;
+        // Widgets are only see-through over the desktop's wallpaper layer; if Explorer ever drops it
+        // while we run, bring it back (a couple of window lookups every few seconds).
+        _layerCheck.Tick += (_, _) => { if (_windows.Count > 0) DesktopLayer.EnsureWallpaperLayer(); };
+        _layerCheck.Start();
     }
+
+    private readonly System.Windows.Forms.Timer _layerCheck = new() { Interval = 5000 };
 
     private void OnDisplayChanged(object? sender, EventArgs e) => _services.Ui.Post(_ => Apply(), null);
 
     public bool Hidden => _services.Settings.Current.WidgetsHidden;
 
-    public bool StarMode => _services.Settings.Current.StarMode;
+    /// <summary>The ambience on screen ("star", "vinyl"), or null.</summary>
+    public string? Ambience => _services.Settings.Current.Ambience is { } a && IsAmbience(a) ? a : null;
 
-    public object DescribeStar() => new { on = StarMode, options = SettingsFor(Star).Options };
-
-    /// <summary>Star Mode on: the widgets step aside (their settings untouched) and the sky takes the screen.</summary>
-    public void SetStarMode(bool on)
+    public object DescribeAmbience() => new
     {
-        if (StarMode == on) return;
-        _services.Settings.Current.StarMode = on;
+        active = Ambience,
+        options = Ambiences.ToDictionary(a => a.Id, a => SettingsFor(a).Options),
+    };
+
+    /// <summary>Turns an ambience on (the widgets step aside, their settings untouched), switches to another, or off (null).</summary>
+    public void SetAmbience(string? id)
+    {
+        if (id is not null && !IsAmbience(id)) return;
+        if (Ambience == id) return;
+        _services.Settings.Current.Ambience = id;
         _services.Settings.Changed();
-        Log.Info($"Star Mode {(on ? "on" : "off")}");
+        Log.Info($"Suasana: {id ?? "off"}");
         Apply();
         Changed?.Invoke();
     }
@@ -90,11 +111,12 @@ public sealed class WidgetManager : IDisposable
         if (_disposed) return;
         var settings = _services.Settings.Current;
 
-        bool star = settings.StarMode && !settings.WidgetsHidden && WebHosts.HasBuiltFrontend;
+        string? ambience = !settings.WidgetsHidden && WebHosts.HasBuiltFrontend ? Ambience : null;
+        bool away = ambience is not null; // any ambience puts the widgets away
         foreach (var info in Catalog)
         {
             var s = SettingsFor(info);
-            bool want = s.Enabled && !settings.WidgetsHidden && !star && WebHosts.HasBuiltFrontend;
+            bool want = s.Enabled && !settings.WidgetsHidden && !away && WebHosts.HasBuiltFrontend;
             bool have = _windows.TryGetValue(info.Id, out var window);
 
             if (want && !have) Create(info, s);
@@ -103,10 +125,13 @@ public sealed class WidgetManager : IDisposable
         }
 
         // The sky covers the whole primary screen and never takes the mouse (desktop stays usable).
-        bool haveStar = _windows.TryGetValue(Star.Id, out var sky);
-        if (star && !haveStar) CreateStar();
-        else if (!star && haveStar) Close(sky!);
-        else if (star && haveStar && Screen.PrimaryScreen is { } screen && sky!.ScreenBounds != screen.Bounds) sky.MoveTo(screen.Bounds);
+        foreach (var a in Ambiences)
+        {
+            bool have = _windows.TryGetValue(a.Id, out var layer);
+            if (a.Id == ambience && !have) CreateAmbience(a.Id);
+            else if (a.Id != ambience && have) Close(layer!);
+            else if (have && Screen.PrimaryScreen is { } screen && layer!.ScreenBounds != screen.Bounds) layer.MoveTo(screen.Bounds);
+        }
 
         _input.Update();
         if (_windows.ContainsKey("queue")) _queueLease ??= _services.Queue.Acquire();
@@ -132,12 +157,12 @@ public sealed class WidgetManager : IDisposable
         _ = StartAsync(window);
     }
 
-    private void CreateStar()
+    private void CreateAmbience(string id)
     {
         var bounds = Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
-        var window = new WidgetWindow(this, Star.Id, bounds, locked: true);
-        _windows[Star.Id] = window;
-        window.FormClosed += (_, _) => { if (_windows.GetValueOrDefault(Star.Id) == window) _windows.Remove(Star.Id); };
+        var window = new WidgetWindow(this, id, bounds, locked: true);
+        _windows[id] = window;
+        window.FormClosed += (_, _) => { if (_windows.GetValueOrDefault(id) == window) _windows.Remove(id); };
         window.Show();
         _ = StartAsync(window);
     }
@@ -173,7 +198,7 @@ public sealed class WidgetManager : IDisposable
         {
             type = "widget-init",
             id = window.Id,
-            locked = info != Star && s.Locked, // the sky hears the pointer (for its exit button); the host keeps it in place
+            locked = !IsAmbience(info.Id) && s.Locked, // an ambience hears the pointer (for its controls); the host keeps it in place
             keepAspect = info.KeepAspect,
             options = s.Options,
             lyricsOffsetMs = _services.Settings.Current.LyricsOffsetMs,
@@ -200,7 +225,7 @@ public sealed class WidgetManager : IDisposable
 
     internal void SaveBounds(string id, Rectangle r)
     {
-        if (id == Star.Id) return; // always the full screen
+        if (IsAmbience(id)) return; // always the full screen
         var s = SettingsFor(Catalog.First(i => i.Id == id));
         (s.X, s.Y, s.Width, s.Height) = (r.X, r.Y, r.Width, r.Height);
         _services.Settings.Changed();
@@ -318,6 +343,7 @@ public sealed class WidgetManager : IDisposable
     public void Dispose()
     {
         _disposed = true;
+        _layerCheck.Dispose();
         Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= OnDisplayChanged;
         _services.Audio.StatusChanged -= OnAudioStatus;
         _explorer.Dispose();

@@ -55,6 +55,8 @@ export const icon = {
   queue: stroke('<path d="M4 6.5h11M4 11.5h11M4 16.5h7"/><path d="M17 14.5v5l4-2.5z" fill="currentColor"/>'),
   trash: stroke('<path d="M4.5 7h15M9.5 7V4.8h5V7M6.5 7l.9 12.2a1 1 0 0 0 1 .8h7.2a1 1 0 0 0 1-.8L17.5 7"/><path d="M10 11v5.5M14 11v5.5"/>'),
   star: stroke('<path d="M12 3.5l1.6 6.9 6.9 1.6-6.9 1.6L12 20.5l-1.6-6.9L3.5 12l6.9-1.6z"/><circle cx="19" cy="5" r="1" fill="currentColor"/><circle cx="5.5" cy="18.5" r="0.8" fill="currentColor"/>'),
+  vinyl: stroke('<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.6"/><path d="M12 6.2a5.8 5.8 0 0 1 5.8 5.8"/>'),
+  mood: stroke('<path d="M19.5 14.6A8 8 0 0 1 9.4 4.5a8 8 0 1 0 10.1 10.1z"/><path d="M16.5 3.5v3M15 5h3" />'),
   info: stroke('<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h0"/>'),
 };
 

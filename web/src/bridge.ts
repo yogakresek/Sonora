@@ -50,6 +50,9 @@ export interface QueueState {
   clientId: string | null;
 }
 
+/** Suasana: at most one full-screen ambience ("star", "vinyl") replaces the widgets while on. */
+export interface AmbienceState { active: string | null; options: Record<string, Record<string, unknown>> }
+
 export interface WidgetItem { id: string; name: string; description: string; enabled: boolean; locked: boolean; options: Record<string, unknown> }
 
 export type HostMessage =
@@ -58,7 +61,7 @@ export type HostMessage =
   | { type: 'track'; track: Track | null }
   | { type: 'lyrics'; lyrics: Lyrics | null }
   | { type: 'queue'; queue: QueueState; redirectUri?: string }
-  | { type: 'widgets'; items: WidgetItem[]; hidden: boolean; star?: { on: boolean; options: Record<string, unknown> } }
+  | { type: 'widgets'; items: WidgetItem[]; hidden: boolean; ambience?: AmbienceState }
   | { type: 'widget-init'; id: string; locked: boolean; keepAspect: boolean; options: Record<string, unknown>; lyricsOffsetMs: number; fps: number; calm?: boolean }
   | { type: 'widget-options'; options: Record<string, unknown> }
   | { type: 'prefs'; fps: number; lyricsOffsetMs: number; sensitivity?: number; smoothing?: number; startWithWindows?: boolean; calm?: boolean }
@@ -72,7 +75,7 @@ export type WebMessage =
   | { type: 'widget-set'; id: string; enabled?: boolean; locked?: boolean }
   | { type: 'widget-reset'; id: string }
   | { type: 'widgets-hidden'; hidden: boolean }
-  | { type: 'star-mode'; on: boolean }
+  | { type: 'ambience'; id: string | null }
   | { type: 'hit-areas'; rects: number[][] }
   | { type: 'drag-start' | 'open-dashboard' }
   | { type: 'resize-start'; keepAspect: boolean }

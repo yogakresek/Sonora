@@ -121,6 +121,21 @@ export interface StarOptions {
 
 export const STAR_DEFAULTS: StarOptions = { dim: 0.8, info: true, twinkle: true, size: 1, backdrop: true };
 
+export interface VinylOptions {
+  /** How dark the room is, 0.4..0.95. */
+  dim: number;
+  /** 0.8..1.3 lyric text scale. */
+  size: number;
+  /** Title, artist, album and time in the top-left corner. */
+  info: boolean;
+  /** Coloured vinyl tinted from the cover (off = classic black). */
+  colored: boolean;
+  /** The room's light comes from the album cover (off = the darkened wallpaper). */
+  backdrop: boolean;
+}
+
+export const VINYL_DEFAULTS: VinylOptions = { dim: 0.78, size: 1, info: true, colored: true, backdrop: true };
+
 export function withDefaults<T extends object>(defaults: T, options: Record<string, unknown> | null | undefined): T {
   const out = { ...defaults } as Record<string, unknown>;
   if (options) {

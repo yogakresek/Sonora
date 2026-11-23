@@ -8,7 +8,7 @@ import { homePage } from './pages/home';
 import { lyricsPage } from './pages/lyrics';
 import { queuePage } from './pages/queue';
 import { settingsPage } from './pages/settings';
-import { starPage } from './pages/star';
+import { ambiencePage } from './pages/ambience';
 import { visualizerPage } from './pages/visualizer';
 import { on, onTick, store } from './store';
 import { esc, h, icon } from './ui';
@@ -20,7 +20,7 @@ const ROUTES: { id: string; label: string; icon: string; page: Page }[] = [
   { id: 'visualizer', label: 'Visualizer', icon: icon.visualizer, page: visualizerPage },
   { id: 'lyrics', label: 'Lirik', icon: icon.lyrics, page: lyricsPage },
   { id: 'queue', label: 'Antrean', icon: icon.queue, page: queuePage },
-  { id: 'star', label: 'Star Mode', icon: icon.star, page: starPage },
+  { id: 'suasana', label: 'Suasana', icon: icon.mood, page: ambiencePage },
   { id: 'audio', label: 'Audio', icon: icon.audio, page: audioPage },
   { id: 'settings', label: 'Pengaturan', icon: icon.settings, page: settingsPage },
 ];

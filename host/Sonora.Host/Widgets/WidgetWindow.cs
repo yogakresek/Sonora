@@ -51,7 +51,7 @@ public sealed class WidgetWindow : Form, IDesktopTarget
         Id = id;
         _screen = screen;
         _locked = locked;
-        _hoverOnly = id == WidgetManager.Star.Id;
+        _hoverOnly = WidgetManager.IsAmbience(id);
 
         FormBorderStyle = FormBorderStyle.None;
         // ShowInTaskbar stays true on purpose: false makes WinForms give the window a hidden owner,
@@ -235,9 +235,10 @@ public sealed class WidgetWindow : Form, IDesktopTarget
                     // [[x, y, w, h], ...] in physical pixels relative to the window.
                     _hot = HitAreas.Parse(msg?["rects"]);
                     break;
-                case "star-mode":
-                    // Turning it off closes this very window: do that after this handler returns.
-                    if (_hoverOnly && msg?["on"] is JsonValue on && !(bool)on) BeginInvoke(() => _manager.SetStarMode(false));
+                case "ambience":
+                    // "Keluar" turns the ambience off, which closes this very window: do that after
+                    // this handler returns. (An ambience can only switch itself off, not to another.)
+                    if (_hoverOnly && msg?["id"] is null) BeginInvoke(() => _manager.SetAmbience(null));
                     break;
                 case "seek":
                     if (msg?["ms"] is JsonValue ms) await _manager.SeekAsync((double)ms);
